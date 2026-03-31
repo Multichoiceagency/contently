@@ -1,26 +1,24 @@
-# Coolify Deployment Configuration
-# Import this in your Coolify dashboard or use docker-compose.yml directly
+# Coolify Deployment Configuration — contentrich.nl
+# Server: 135.181.47.19 (Hetzner)
 #
-# Setup in Coolify:
+# Setup in Coolify (https://135.181.47.19:8000):
 # 1. Create new project "Flowgent"
-# 2. Add services: PostgreSQL, Redis (from Coolify marketplace)
-# 3. Add application: Docker Compose (point to this repo)
-# 4. Set environment variables in Coolify dashboard
-# 5. Configure domain: flowgent.yourdomain.com
-# 6. Enable SSL (automatic via Coolify)
+# 2. New Resource → Docker Compose → GitHub repo: Multichoiceagency/contently
+# 3. Set compose file to: coolify.yml
+# 4. Set environment variables (see below)
+# 5. Domain: contentrich.nl (frontend) + api.contentrich.nl (backend)
+# 6. SSL: automatic via Coolify/Traefik
 #
-# Required Environment Variables (set in Coolify):
-#   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-#   JWT_SECRET, JWT_REFRESH_SECRET
-#   OPENAI_API_KEY
-#   NUXT_PUBLIC_API_BASE (= https://flowgent.yourdomain.com/api)
-#
-# Coolify will handle:
-#   - SSL termination
-#   - Reverse proxy (Traefik)
-#   - Auto-deployment on git push
-#   - Health checks
-#   - Log management
+# Required Environment Variables (set in Coolify dashboard):
+#   POSTGRES_USER=flowgent
+#   POSTGRES_PASSWORD=<strong-password>
+#   POSTGRES_DB=flowgent
+#   JWT_SECRET=<random-64-chars>
+#   JWT_REFRESH_SECRET=<random-64-chars>
+#   OPENAI_API_KEY=sk-...
+#   NUXT_PUBLIC_API_BASE=https://contentrich.nl/api
+#   COOLIFY_DOMAIN=contentrich.nl
+#   CORS_ORIGIN=https://contentrich.nl
 
 version: '3.8'
 
@@ -29,21 +27,23 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER: ${POSTGRES_USER:-flowgent}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB:-flowgent}
     volumes:
       - flowgent_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flowgent}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - flowgent
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-}
     volumes:
       - flowgent_redis:/data
     healthcheck:
@@ -51,6 +51,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - flowgent
 
   backend:
     build:
@@ -58,11 +60,12 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flowgent}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flowgent}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CORS_ORIGIN: https://${COOLIFY_DOMAIN:-contentrich.nl}
       PORT: 4000
       NODE_ENV: production
     depends_on:
@@ -75,26 +78,53 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+      start_period: 30s
+    networks:
+      - flowgent
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.flowgent-api.rule=Host(`${COOLIFY_DOMAIN}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.flowgent-api.middlewares=strip-api-prefix"
+      - "traefik.http.routers.flowgent-api.rule=Host(`${COOLIFY_DOMAIN:-contentrich.nl}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.flowgent-api.entrypoints=https"
+      - "traefik.http.routers.flowgent-api.tls=true"
+      - "traefik.http.routers.flowgent-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.flowgent-api.middlewares=strip-api-prefix,api-headers"
       - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
+      - "traefik.http.middlewares.api-headers.headers.accesscontrolalloworiginlist=https://${COOLIFY_DOMAIN:-contentrich.nl}"
+      - "traefik.http.middlewares.api-headers.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.api-headers.headers.accesscontrolallowheaders=Content-Type,Authorization,x-workspace-id"
       - "traefik.http.services.flowgent-api.loadbalancer.server.port=4000"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NUXT_PUBLIC_API_BASE: https://${COOLIFY_DOMAIN:-contentrich.nl}/api
     restart: unless-stopped
     environment:
-      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-http://backend:4000}
+      NUXT_PUBLIC_API_BASE: https://${COOLIFY_DOMAIN:-contentrich.nl}/api
     depends_on:
       - backend
+    networks:
+      - flowgent
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.flowgent-frontend.rule=Host(`${COOLIFY_DOMAIN}`)"
+      - "traefik.http.routers.flowgent-frontend.rule=Host(`${COOLIFY_DOMAIN:-contentrich.nl}`)"
+      - "traefik.http.routers.flowgent-frontend.entrypoints=https"
+      - "traefik.http.routers.flowgent-frontend.tls=true"
+      - "traefik.http.routers.flowgent-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.flowgent-www.rule=Host(`www.${COOLIFY_DOMAIN:-contentrich.nl}`)"
+      - "traefik.http.routers.flowgent-www.entrypoints=https"
+      - "traefik.http.routers.flowgent-www.tls=true"
+      - "traefik.http.routers.flowgent-www.middlewares=www-redirect"
+      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.(.*)"
+      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
+      - "traefik.http.middlewares.www-redirect.redirectregex.permanent=true"
       - "traefik.http.services.flowgent-frontend.loadbalancer.server.port=3000"
+
+networks:
+  flowgent:
+    driver: bridge
 
 volumes:
   flowgent_postgres:

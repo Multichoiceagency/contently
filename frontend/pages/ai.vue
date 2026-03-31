@@ -2,6 +2,10 @@
 import {
   SparklesIcon,
   ClockIcon,
+  ArrowPathIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  BoltIcon,
 } from '@heroicons/vue/24/outline'
 import type { Platform, AiTone, AiContentType, AiGeneration } from '~/types'
 
@@ -11,6 +15,37 @@ const { addToast } = useToast()
 const loading = ref(false)
 const results = ref<string[]>([])
 const lastParams = ref<{ platform: string; tone: string } | null>(null)
+const historyOpen = ref(true)
+const creditsUsed = ref(847)
+const creditsTotal = ref(1000)
+
+// Form state with floating labels
+const topic = ref('')
+const topicFocused = ref(false)
+const selectedPlatform = ref<Platform>('linkedin')
+const selectedTone = ref<AiTone>('professional')
+const selectedContentType = ref<AiContentType>('full-post')
+
+const tones: { id: AiTone; label: string; emoji: string; description: string }[] = [
+  { id: 'professional', label: 'Professional', emoji: '\uD83D\uDC54', description: 'Corporate & polished' },
+  { id: 'casual', label: 'Casual', emoji: '\u2615', description: 'Friendly & relaxed' },
+  { id: 'fun', label: 'Fun', emoji: '\uD83C\uDF89', description: 'Playful & energetic' },
+  { id: 'inspiring', label: 'Inspiring', emoji: '\uD83D\uDE80', description: 'Motivating & bold' },
+]
+
+const platforms: { id: Platform; label: string }[] = [
+  { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'facebook', label: 'Facebook' },
+  { id: 'twitter', label: 'Twitter/X' },
+  { id: 'instagram', label: 'Instagram' },
+]
+
+const contentTypes: { id: AiContentType; label: string }[] = [
+  { id: 'full-post', label: 'Full Post' },
+  { id: 'caption', label: 'Caption' },
+  { id: 'hashtags', label: 'Hashtags' },
+  { id: 'ideas', label: 'Content Ideas' },
+]
 
 const history = ref<AiGeneration[]>([
   {
@@ -40,6 +75,24 @@ const history = ref<AiGeneration[]>([
     result: '5 trends shaping social media in 2026...',
     createdAt: new Date(Date.now() - 259200000).toISOString(),
   },
+  {
+    id: '4',
+    topic: 'Customer Success Story',
+    platform: 'facebook',
+    tone: 'inspiring',
+    contentType: 'full-post',
+    result: 'Meet Sarah, who grew her business 3x...',
+    createdAt: new Date(Date.now() - 345600000).toISOString(),
+  },
+  {
+    id: '5',
+    topic: 'Holiday Campaign',
+    platform: 'instagram',
+    tone: 'fun',
+    contentType: 'caption',
+    result: 'Tis the season for amazing deals...',
+    createdAt: new Date(Date.now() - 432000000).toISOString(),
+  },
 ])
 
 const mockGenerations: Record<string, string[]> = {
@@ -65,29 +118,53 @@ const mockGenerations: Record<string, string[]> = {
   ],
 }
 
-const handleGenerate = async (data: {
-  topic: string
-  platform: Platform
-  tone: AiTone
-  contentType: AiContentType
-}) => {
+// Group history by date
+const groupedHistory = computed(() => {
+  const groups: { label: string; items: AiGeneration[] }[] = []
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const todayItems: AiGeneration[] = []
+  const yesterdayItems: AiGeneration[] = []
+  const olderItems: AiGeneration[] = []
+
+  history.value.forEach(item => {
+    const d = new Date(item.createdAt)
+    d.setHours(0, 0, 0, 0)
+    if (d.getTime() === today.getTime()) todayItems.push(item)
+    else if (d.getTime() === yesterday.getTime()) yesterdayItems.push(item)
+    else olderItems.push(item)
+  })
+
+  if (todayItems.length) groups.push({ label: 'Today', items: todayItems })
+  if (yesterdayItems.length) groups.push({ label: 'Yesterday', items: yesterdayItems })
+  if (olderItems.length) groups.push({ label: 'Earlier', items: olderItems })
+  return groups
+})
+
+const creditPercent = computed(() => Math.round((creditsUsed.value / creditsTotal.value) * 100))
+
+const handleGenerate = async () => {
+  if (!topic.value.trim()) return
   loading.value = true
   results.value = []
-  lastParams.value = { platform: data.platform, tone: data.tone }
+  lastParams.value = { platform: selectedPlatform.value, tone: selectedTone.value }
 
-  // Simulate API delay
-  await new Promise(r => setTimeout(r, 1500))
+  await new Promise(r => setTimeout(r, 2200))
 
-  const typeResults = mockGenerations[data.contentType] || mockGenerations['full-post']
+  const typeResults = mockGenerations[selectedContentType.value] || mockGenerations['full-post']
   results.value = typeResults
 
-  // Add to history
+  creditsUsed.value = Math.min(creditsUsed.value + 3, creditsTotal.value)
+
   history.value.unshift({
     id: Date.now().toString(),
-    topic: data.topic,
-    platform: data.platform,
-    tone: data.tone,
-    contentType: data.contentType,
+    topic: topic.value,
+    platform: selectedPlatform.value,
+    tone: selectedTone.value,
+    contentType: selectedContentType.value,
     result: typeResults[0],
     createdAt: new Date().toISOString(),
   })
@@ -95,60 +172,292 @@ const handleGenerate = async (data: {
   loading.value = false
 }
 
+const handleRegenerate = async () => {
+  if (!topic.value.trim()) return
+  loading.value = true
+  results.value = []
+
+  await new Promise(r => setTimeout(r, 1800))
+
+  const typeResults = mockGenerations[selectedContentType.value] || mockGenerations['full-post']
+  // Shuffle to simulate regeneration
+  results.value = [...typeResults].sort(() => Math.random() - 0.5)
+  creditsUsed.value = Math.min(creditsUsed.value + 2, creditsTotal.value)
+  loading.value = false
+}
+
 const handleUseInPost = (content: string) => {
-  // Navigate to create post with the content pre-filled
-  // For now we show a toast
   addToast('Content copied! Create a new post to use it.', 'success')
 }
+
+// Thinking dots animation
+const thinkingDots = ref(0)
+let thinkingInterval: ReturnType<typeof setInterval> | null = null
+
+watch(loading, (val) => {
+  if (val) {
+    thinkingDots.value = 0
+    thinkingInterval = setInterval(() => {
+      thinkingDots.value = (thinkingDots.value + 1) % 4
+    }, 400)
+  } else {
+    if (thinkingInterval) clearInterval(thinkingInterval)
+  }
+})
+
+// Result fade-in stagger
+const visibleResults = ref<number[]>([])
+watch(results, (val) => {
+  visibleResults.value = []
+  if (val.length) {
+    val.forEach((_, i) => {
+      setTimeout(() => {
+        visibleResults.value.push(i)
+      }, i * 200)
+    })
+  }
+})
 </script>
 
 <template>
   <div>
     <AppTopbar title="AI Generator" subtitle="Create engaging content with AI.">
       <template #action>
-        <div class="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-brand-500 to-purple-500 text-white rounded-lg text-sm font-medium">
-          <SparklesIcon class="w-4 h-4" />
-          AI-Powered
+        <!-- Credit/Token Usage Indicator -->
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+            <BoltIcon class="w-4 h-4 text-amber-500" />
+            <div class="flex items-center gap-2">
+              <div class="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="creditPercent > 80 ? 'bg-red-500' : creditPercent > 50 ? 'bg-amber-500' : 'bg-emerald-500'"
+                  :style="{ width: `${creditPercent}%` }"
+                />
+              </div>
+              <span class="text-xs font-medium text-gray-600">{{ creditsUsed }}/{{ creditsTotal }}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium shadow-sm">
+            <SparklesIcon class="w-4 h-4" />
+            AI-Powered
+          </div>
         </div>
       </template>
     </AppTopbar>
+
+    <!-- Hero Section -->
+    <div class="relative overflow-hidden bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 mx-6 mt-6 rounded-2xl">
+      <div class="absolute inset-0 overflow-hidden">
+        <!-- Sparkles animation -->
+        <div class="sparkle sparkle-1"></div>
+        <div class="sparkle sparkle-2"></div>
+        <div class="sparkle sparkle-3"></div>
+        <div class="sparkle sparkle-4"></div>
+        <div class="sparkle sparkle-5"></div>
+        <div class="sparkle sparkle-6"></div>
+      </div>
+      <div class="relative px-8 py-10 text-center">
+        <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-sm rounded-full text-white/90 text-xs font-medium mb-4">
+          <SparklesIcon class="w-3.5 h-3.5" />
+          Powered by Advanced AI
+        </div>
+        <h2 class="text-3xl font-bold text-white mb-2">AI-Powered Content</h2>
+        <p class="text-white/80 max-w-lg mx-auto text-sm leading-relaxed">
+          Generate scroll-stopping social media content in seconds. Choose your platform, set your tone, and let AI do the heavy lifting.
+        </p>
+      </div>
+    </div>
 
     <div class="p-6">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <!-- Generation Form -->
         <div class="lg:col-span-1">
-          <AiGenerateForm @generate="handleGenerate" />
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6">Generate Content</h3>
+
+            <div class="space-y-5">
+              <!-- Topic with floating label -->
+              <div class="relative">
+                <input
+                  v-model="topic"
+                  type="text"
+                  id="ai-topic"
+                  class="peer w-full px-4 pt-5 pb-2 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all duration-300"
+                  placeholder="Topic"
+                  @focus="topicFocused = true"
+                  @blur="topicFocused = false"
+                />
+                <label
+                  for="ai-topic"
+                  class="absolute left-4 transition-all duration-200 pointer-events-none"
+                  :class="topic || topicFocused
+                    ? 'top-1.5 text-[10px] font-semibold text-indigo-500'
+                    : 'top-3.5 text-sm text-gray-400'"
+                >
+                  Topic or Product
+                </label>
+              </div>
+
+              <!-- Platform -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Platform</label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="p in platforms"
+                    :key="p.id"
+                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border-2 transition-all duration-200"
+                    :class="
+                      selectedPlatform === p.id
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    "
+                    @click="selectedPlatform = p.id"
+                  >
+                    <PlatformIcon :platform="p.id" size="xs" />
+                    {{ p.label }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tone as visual cards -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tone</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    v-for="t in tones"
+                    :key="t.id"
+                    class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200 group"
+                    :class="
+                      selectedTone === t.id
+                        ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    "
+                    @click="selectedTone = t.id"
+                  >
+                    <span class="text-xl">{{ t.emoji }}</span>
+                    <span
+                      class="text-xs font-semibold"
+                      :class="selectedTone === t.id ? 'text-indigo-700' : 'text-gray-700'"
+                    >{{ t.label }}</span>
+                    <span
+                      class="text-[10px]"
+                      :class="selectedTone === t.id ? 'text-indigo-500' : 'text-gray-400'"
+                    >{{ t.description }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Content Type -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Content Type</label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="ct in contentTypes"
+                    :key="ct.id"
+                    class="px-3 py-2 rounded-lg text-sm font-medium border-2 transition-all duration-200"
+                    :class="
+                      selectedContentType === ct.id
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    "
+                    @click="selectedContentType = ct.id"
+                  >
+                    {{ ct.label }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Generate Button -->
+              <button
+                class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl text-sm font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/25"
+                :disabled="!topic.trim() || loading"
+                @click="handleGenerate"
+              >
+                <LoadingSpinner v-if="loading" size="sm" />
+                <template v-else>
+                  <SparklesIcon class="w-5 h-5" />
+                  Generate Content
+                </template>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Results -->
         <div class="lg:col-span-2">
-          <div v-if="loading" class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <!-- Loading State: AI Thinking Animation -->
+          <div v-if="loading" class="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
             <div class="flex flex-col items-center">
-              <div class="relative">
-                <LoadingSpinner size="lg" />
-                <SparklesIcon class="w-5 h-5 text-brand-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+              <!-- AI Thinking Animation -->
+              <div class="relative mb-6">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center animate-pulse">
+                  <SparklesIcon class="w-8 h-8 text-white" />
+                </div>
+                <div class="absolute -top-1 -right-1 w-4 h-4 bg-purple-400 rounded-full animate-ping" />
               </div>
-              <p class="text-sm text-gray-500 mt-4 font-medium">Generating content...</p>
-              <p class="text-xs text-gray-400 mt-1">This usually takes a few seconds</p>
+
+              <!-- Thinking Dots with Gradient Shimmer -->
+              <div class="flex items-center gap-1 mb-4">
+                <span class="text-sm font-medium text-gray-700">AI is thinking</span>
+                <div class="flex gap-0.5">
+                  <span
+                    v-for="i in 3"
+                    :key="i"
+                    class="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                    :class="thinkingDots >= i ? 'bg-indigo-500 scale-110' : 'bg-gray-300 scale-100'"
+                  />
+                </div>
+              </div>
+
+              <!-- Shimmer Lines -->
+              <div class="w-full max-w-sm space-y-3">
+                <div class="h-3 rounded-full bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 shimmer-line" />
+                <div class="h-3 rounded-full bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 shimmer-line" style="animation-delay: 0.2s; width: 80%" />
+                <div class="h-3 rounded-full bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 shimmer-line" style="animation-delay: 0.4s; width: 60%" />
+              </div>
+
+              <p class="text-xs text-gray-400 mt-4">Crafting compelling content for {{ selectedPlatform }}...</p>
             </div>
           </div>
 
+          <!-- Results -->
           <div v-else-if="results.length > 0" class="space-y-4">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-semibold text-gray-900">Generated Content ({{ results.length }} variations)</h3>
+              <h3 class="text-sm font-semibold text-gray-900">
+                Generated Content
+                <span class="text-gray-400 font-normal ml-1">({{ results.length }} variations)</span>
+              </h3>
+              <button
+                class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-200"
+                @click="handleRegenerate"
+              >
+                <ArrowPathIcon class="w-4 h-4" />
+                Regenerate
+              </button>
             </div>
-            <AiResultCard
+
+            <!-- Staggered Fade-in Result Cards -->
+            <div
               v-for="(result, index) in results"
               :key="index"
-              :content="result"
-              :platform="lastParams?.platform"
-              :tone="lastParams?.tone"
-              @use-in-post="handleUseInPost"
-            />
+              class="transition-all duration-500"
+              :class="visibleResults.includes(index) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
+            >
+              <AiResultCard
+                :content="result"
+                :platform="lastParams?.platform"
+                :tone="lastParams?.tone"
+                @use-in-post="handleUseInPost"
+              />
+            </div>
           </div>
 
-          <div v-else class="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <SparklesIcon class="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <!-- Empty State -->
+          <div v-else class="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center mx-auto mb-4">
+              <SparklesIcon class="w-8 h-8 text-indigo-400" />
+            </div>
             <h3 class="text-lg font-semibold text-gray-900 mb-1">Generate content with AI</h3>
             <p class="text-sm text-gray-500 max-w-md mx-auto">
               Enter a topic, select your platform and tone, then let AI create engaging social media content for you.
@@ -156,27 +465,49 @@ const handleUseInPost = (content: string) => {
           </div>
         </div>
 
-        <!-- History -->
+        <!-- History Sidebar -->
         <div class="lg:col-span-1">
-          <div class="bg-white rounded-xl border border-gray-200">
-            <div class="flex items-center gap-2 px-5 py-4 border-b border-gray-200">
-              <ClockIcon class="w-5 h-5 text-gray-400" />
-              <h3 class="text-sm font-semibold text-gray-900">Recent Generations</h3>
-            </div>
-            <div class="divide-y divide-gray-100">
-              <div
-                v-for="item in history"
-                :key="item.id"
-                class="px-5 py-3 hover:bg-gray-50 cursor-pointer transition-all duration-200"
-              >
-                <div class="flex items-center gap-2 mb-1">
-                  <PlatformIcon :platform="item.platform" size="xs" />
-                  <span class="text-xs text-gray-400 capitalize">{{ item.tone }}</span>
-                </div>
-                <p class="text-xs font-medium text-gray-700 mb-0.5">{{ item.topic }}</p>
-                <p class="text-[10px] text-gray-400">
-                  {{ new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }}
-                </p>
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <!-- Collapsible Header -->
+            <button
+              class="w-full flex items-center justify-between px-5 py-4 border-b border-gray-100 hover:bg-gray-50/50 transition-all duration-200"
+              @click="historyOpen = !historyOpen"
+            >
+              <div class="flex items-center gap-2">
+                <ClockIcon class="w-5 h-5 text-gray-400" />
+                <h3 class="text-sm font-semibold text-gray-900">Recent Generations</h3>
+                <span class="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{{ history.length }}</span>
+              </div>
+              <component
+                :is="historyOpen ? ChevronUpIcon : ChevronDownIcon"
+                class="w-4 h-4 text-gray-400 transition-transform duration-200"
+              />
+            </button>
+
+            <!-- Collapsible Body with Date Groupings -->
+            <div
+              class="overflow-hidden transition-all duration-300"
+              :style="{ maxHeight: historyOpen ? '600px' : '0px' }"
+            >
+              <div class="overflow-y-auto max-h-[560px]">
+                <template v-for="group in groupedHistory" :key="group.label">
+                  <div class="px-5 pt-3 pb-1">
+                    <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{{ group.label }}</span>
+                  </div>
+                  <div
+                    v-for="item in group.items"
+                    :key="item.id"
+                    class="px-5 py-3 hover:bg-gray-50 cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-indigo-400"
+                  >
+                    <div class="flex items-center gap-2 mb-1">
+                      <PlatformIcon :platform="item.platform" size="xs" />
+                      <span class="text-[10px] text-gray-400 capitalize bg-gray-100 px-1.5 py-0.5 rounded">{{ item.tone }}</span>
+                      <span class="text-[10px] text-gray-300 capitalize">{{ item.contentType }}</span>
+                    </div>
+                    <p class="text-xs font-medium text-gray-700 mb-0.5 truncate">{{ item.topic }}</p>
+                    <p class="text-[10px] text-gray-400 truncate">{{ item.result }}</p>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -185,3 +516,49 @@ const handleUseInPost = (content: string) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Sparkle animations */
+.sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+  animation: sparkle-float 3s ease-in-out infinite;
+}
+
+.sparkle-1 { top: 20%; left: 10%; animation-delay: 0s; }
+.sparkle-2 { top: 60%; left: 25%; animation-delay: 0.5s; }
+.sparkle-3 { top: 30%; left: 70%; animation-delay: 1s; }
+.sparkle-4 { top: 70%; left: 80%; animation-delay: 1.5s; }
+.sparkle-5 { top: 15%; left: 50%; animation-delay: 2s; }
+.sparkle-6 { top: 80%; left: 40%; animation-delay: 2.5s; }
+
+@keyframes sparkle-float {
+  0%, 100% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-20px) scale(1);
+  }
+}
+
+/* Shimmer animation for loading lines */
+.shimmer-line {
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+</style>

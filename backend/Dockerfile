@@ -1,10 +1,11 @@
 FROM node:22-alpine AS base
+RUN apk add --no-cache wget
 WORKDIR /app
 
 # Install dependencies
 FROM base AS deps
-COPY package.json ./
-RUN npm install --production=false
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile
 
 # Generate Prisma client
 FROM deps AS prisma
@@ -27,5 +28,8 @@ COPY --from=build /app/dist ./dist
 COPY package.json ./
 
 EXPOSE 4000
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 --start-period=30s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
 
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
