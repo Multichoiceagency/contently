@@ -3,6 +3,11 @@ import bcrypt from "bcrypt";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import {
+  generateVerificationCode,
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "../services/email.service.js";
 
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -18,6 +23,27 @@ const loginSchema = z.object({
 const refreshSchema = z.object({
   refreshToken: z.string().min(1, "Refresh token is required"),
 });
+
+const verifySchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().length(6, "Verification code must be 6 digits"),
+});
+
+const resendSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+const resetPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().length(6, "Reset code must be 6 digits"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const VERIFICATION_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
 const SALT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = "15m";
@@ -88,17 +114,21 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      const code = generateVerificationCode();
 
       const user = await prisma.user.create({
         data: {
           email,
           passwordHash,
           name,
+          emailVerified: false,
+          verificationCode: code,
+          verificationExpiry: new Date(Date.now() + VERIFICATION_EXPIRY_MS),
         },
       });
 
       const workspaceName = `${name}'s Workspace`;
-      const workspace = await prisma.workspace.create({
+      await prisma.workspace.create({
         data: {
           name: workspaceName,
           slug: generateSlug(workspaceName),
@@ -111,20 +141,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
         },
       });
 
-      const tokens = await generateTokens(fastify, user.id, user.email);
+      try {
+        await sendVerificationEmail(email, name, code);
+      } catch (err) {
+        fastify.log.error(err, "Failed to send verification email");
+      }
 
       return reply.status(201).send({
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        },
-        workspace: {
-          id: workspace.id,
-          name: workspace.name,
-          slug: workspace.slug,
-        },
-        ...tokens,
+        message: "Account created. Check your email for the verification code.",
+        email: user.email,
+        requiresVerification: true,
       });
     }
   );
@@ -173,6 +199,32 @@ export default async function authRoutes(fastify: FastifyInstance) {
           statusCode: 401,
           error: "Unauthorized",
           message: "Invalid email or password",
+        });
+      }
+
+      if (!user.emailVerified) {
+        // Resend verification code
+        const code = generateVerificationCode();
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            verificationCode: code,
+            verificationExpiry: new Date(Date.now() + VERIFICATION_EXPIRY_MS),
+          },
+        });
+
+        try {
+          await sendVerificationEmail(user.email, user.name, code);
+        } catch (err) {
+          fastify.log.error(err, "Failed to send verification email");
+        }
+
+        return reply.status(403).send({
+          statusCode: 403,
+          error: "Email Not Verified",
+          message: "Please verify your email. A new code has been sent.",
+          requiresVerification: true,
+          email: user.email,
         });
       }
 
@@ -275,6 +327,219 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       return reply.send({ message: "Logged out successfully" });
+    }
+  );
+
+  // POST /auth/verify
+  fastify.post(
+    "/auth/verify",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parseResult = verifySchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Validation Error",
+          message: parseResult.error.issues.map((i) => i.message).join(", "),
+        });
+      }
+
+      const { email, code } = parseResult.data;
+
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          workspaceMembers: {
+            include: {
+              workspace: {
+                select: { id: true, name: true, slug: true, plan: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: "Not Found",
+          message: "User not found",
+        });
+      }
+
+      if (user.emailVerified) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Already Verified",
+          message: "Email is already verified",
+        });
+      }
+
+      if (
+        user.verificationCode !== code ||
+        !user.verificationExpiry ||
+        user.verificationExpiry < new Date()
+      ) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Invalid Code",
+          message: "Invalid or expired verification code",
+        });
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerified: true,
+          verificationCode: null,
+          verificationExpiry: null,
+        },
+      });
+
+      const tokens = await generateTokens(fastify, user.id, user.email);
+
+      return reply.send({
+        message: "Email verified successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatar: user.avatar,
+        },
+        workspaces: user.workspaceMembers.map((m) => ({
+          ...m.workspace,
+          role: m.role,
+        })),
+        ...tokens,
+      });
+    }
+  );
+
+  // POST /auth/resend-code
+  fastify.post(
+    "/auth/resend-code",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parseResult = resendSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Validation Error",
+          message: parseResult.error.issues.map((i) => i.message).join(", "),
+        });
+      }
+
+      const { email } = parseResult.data;
+
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        // Don't reveal whether user exists
+        return reply.send({ message: "If that email exists, a new code has been sent." });
+      }
+
+      if (user.emailVerified) {
+        return reply.send({ message: "Email is already verified." });
+      }
+
+      const code = generateVerificationCode();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          verificationCode: code,
+          verificationExpiry: new Date(Date.now() + VERIFICATION_EXPIRY_MS),
+        },
+      });
+
+      try {
+        await sendVerificationEmail(user.email, user.name, code);
+      } catch (err) {
+        fastify.log.error(err, "Failed to send verification email");
+      }
+
+      return reply.send({ message: "If that email exists, a new code has been sent." });
+    }
+  );
+
+  // POST /auth/forgot-password
+  fastify.post(
+    "/auth/forgot-password",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parseResult = forgotPasswordSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Validation Error",
+          message: parseResult.error.issues.map((i) => i.message).join(", "),
+        });
+      }
+
+      const { email } = parseResult.data;
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (user) {
+        const code = generateVerificationCode();
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            verificationCode: code,
+            verificationExpiry: new Date(Date.now() + VERIFICATION_EXPIRY_MS),
+          },
+        });
+
+        try {
+          await sendPasswordResetEmail(user.email, user.name, code);
+        } catch (err) {
+          fastify.log.error(err, "Failed to send password reset email");
+        }
+      }
+
+      // Always return success to prevent email enumeration
+      return reply.send({ message: "If that email exists, a reset code has been sent." });
+    }
+  );
+
+  // POST /auth/reset-password
+  fastify.post(
+    "/auth/reset-password",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parseResult = resetPasswordSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Validation Error",
+          message: parseResult.error.issues.map((i) => i.message).join(", "),
+        });
+      }
+
+      const { email, code, password } = parseResult.data;
+
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (
+        !user ||
+        user.verificationCode !== code ||
+        !user.verificationExpiry ||
+        user.verificationExpiry < new Date()
+      ) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Invalid Code",
+          message: "Invalid or expired reset code",
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          verificationCode: null,
+          verificationExpiry: null,
+          emailVerified: true,
+        },
+      });
+
+      // Invalidate all existing refresh tokens
+      await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+      return reply.send({ message: "Password reset successfully. Please log in." });
     }
   );
 
