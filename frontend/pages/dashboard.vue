@@ -6,15 +6,29 @@ import {
   ChartBarIcon,
   SparklesIcon,
   ArrowTrendingUpIcon,
+  PlusIcon,
+  CalendarDaysIcon,
 } from '@heroicons/vue/24/outline'
 import { usePostsStore } from '~/stores/posts'
 
 const postsStore = usePostsStore()
 const router = useRouter()
+const { user } = useAuth()
 const showPostModal = ref(false)
 
 onMounted(() => {
   postsStore.loadPosts()
+})
+
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+})
+
+const firstName = computed(() => {
+  return user.value?.name?.split(' ')[0] || 'there'
 })
 
 const stats = computed(() => [
@@ -23,28 +37,28 @@ const stats = computed(() => [
     value: postsStore.posts.length,
     change: 12,
     icon: DocumentTextIcon,
-    color: 'bg-brand-100',
+    gradient: 'bg-gradient-to-br from-purple-600 to-purple-700',
   },
   {
     title: 'Scheduled',
     value: postsStore.scheduledCount,
     change: 5,
     icon: ClockIcon,
-    color: 'bg-amber-100',
+    gradient: 'bg-gradient-to-br from-amber-500 to-orange-600',
   },
   {
     title: 'Published',
     value: postsStore.publishedCount,
     change: 18,
     icon: CheckCircleIcon,
-    color: 'bg-green-100',
+    gradient: 'bg-gradient-to-br from-emerald-500 to-green-600',
   },
   {
     title: 'Engagement Rate',
     value: '4.2%',
     change: -2,
     icon: ChartBarIcon,
-    color: 'bg-purple-100',
+    gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600',
   },
 ])
 
@@ -63,7 +77,7 @@ const engagementChartData = computed(() => {
         label: 'Engagement',
         data: Array.from({ length: 30 }, () => Math.floor(Math.random() * 400 + 100)),
         borderColor: '#6366f1',
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        backgroundColor: 'rgba(99, 102, 241, 0.08)',
         fill: true,
         tension: 0.4,
         pointRadius: 0,
@@ -128,6 +142,41 @@ const handleCreatePost = (data: any) => {
     <AppTopbar title="Dashboard" subtitle="Welcome back! Here's your social media overview." @action="showPostModal = true" />
 
     <div class="p-6 space-y-6">
+      <!-- Welcome Header -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">
+            {{ greeting }}, {{ firstName }} <span class="inline-block animate-wave origin-[70%_70%]">&#128075;</span>
+          </h1>
+          <p class="text-sm text-gray-500 mt-1">Here's what's happening with your content</p>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="flex items-center gap-3">
+          <button
+            class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-all duration-200"
+            @click="showPostModal = true"
+          >
+            <PlusIcon class="w-4 h-4" />
+            New Post
+          </button>
+          <button
+            class="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 shadow-sm shadow-purple-600/20 transition-all duration-200"
+            @click="router.push('/ai')"
+          >
+            <SparklesIcon class="w-4 h-4" />
+            AI Generate
+          </button>
+          <button
+            class="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all duration-200"
+            @click="router.push('/calendar')"
+          >
+            <CalendarDaysIcon class="w-4 h-4" />
+            View Calendar
+          </button>
+        </div>
+      </div>
+
       <!-- Stats Row -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -137,7 +186,7 @@ const handleCreatePost = (data: any) => {
           :value="stat.value"
           :change="stat.change"
           :icon="stat.icon"
-          :color="stat.color"
+          :gradient="stat.gradient"
         />
       </div>
 
@@ -164,10 +213,10 @@ const handleCreatePost = (data: any) => {
       <!-- Bottom Row -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Recent Posts -->
-        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200">
+        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm">
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h3 class="text-sm font-semibold text-gray-900">Recent Posts</h3>
-            <NuxtLink to="/posts" class="text-xs text-brand-600 hover:text-brand-700 font-medium">
+            <NuxtLink to="/posts" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
               View All
             </NuxtLink>
           </div>
@@ -175,7 +224,7 @@ const handleCreatePost = (data: any) => {
             <div
               v-for="post in recentPosts"
               :key="post.id"
-              class="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+              class="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50/80 transition-all duration-200 cursor-pointer"
               @click="router.push(`/posts/${post.id}`)"
             >
               <div class="flex items-center gap-1.5 flex-shrink-0">
@@ -195,30 +244,34 @@ const handleCreatePost = (data: any) => {
           </div>
         </div>
 
-        <!-- AI Suggestions -->
-        <div class="bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl p-6 text-white">
-          <div class="flex items-center gap-2 mb-4">
-            <SparklesIcon class="w-5 h-5" />
-            <h3 class="text-sm font-semibold">AI Suggestions</h3>
-          </div>
-          <div class="space-y-4">
-            <div
-              v-for="(suggestion, index) in aiSuggestions"
-              :key="index"
-              class="bg-white/10 rounded-lg p-3"
-            >
-              <div class="flex items-start gap-2">
-                <ArrowTrendingUpIcon class="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-200" />
-                <p class="text-sm text-white/90 leading-relaxed">{{ suggestion }}</p>
+        <!-- AI Insights -->
+        <div class="relative overflow-hidden rounded-xl p-[2px] bg-gradient-to-br from-indigo-500 to-purple-500">
+          <div class="bg-white rounded-[10px] p-6 h-full">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                <SparklesIcon class="w-4 h-4 text-white" />
+              </div>
+              <h3 class="text-sm font-semibold text-gray-900">AI Insights</h3>
+            </div>
+            <div class="space-y-3">
+              <div
+                v-for="(suggestion, index) in aiSuggestions"
+                :key="index"
+                class="bg-gray-50 rounded-lg p-3 border border-gray-100"
+              >
+                <div class="flex items-start gap-2.5">
+                  <ArrowTrendingUpIcon class="w-4 h-4 flex-shrink-0 mt-0.5 text-indigo-500" />
+                  <p class="text-sm text-gray-600 leading-relaxed">{{ suggestion }}</p>
+                </div>
               </div>
             </div>
+            <button
+              class="mt-4 w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm shadow-indigo-600/20"
+              @click="router.push('/ai')"
+            >
+              Generate Content
+            </button>
           </div>
-          <button
-            class="mt-4 w-full bg-white/20 hover:bg-white/30 text-white py-2 rounded-lg text-sm font-medium transition-all duration-200"
-            @click="router.push('/ai')"
-          >
-            Generate Content
-          </button>
         </div>
       </div>
     </div>
@@ -226,3 +279,20 @@ const handleCreatePost = (data: any) => {
     <PostModal v-model="showPostModal" @save="handleCreatePost" />
   </div>
 </template>
+
+<style scoped>
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+.animate-wave {
+  animation: wave 2.5s infinite;
+  display: inline-block;
+}
+</style>

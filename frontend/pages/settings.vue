@@ -9,6 +9,7 @@ import {
   PlusIcon,
   TrashIcon,
   CheckIcon,
+  StarIcon,
 } from '@heroicons/vue/24/outline'
 import type { TeamMember } from '~/types'
 
@@ -81,9 +82,9 @@ const removeMember = (id: string) => {
 // Billing
 const currentPlan = ref('pro')
 const plans = [
-  { id: 'free', label: 'Free', price: '$0', features: ['3 social accounts', '30 posts/month', 'Basic analytics'] },
-  { id: 'pro', label: 'Pro', price: '$29', features: ['10 social accounts', 'Unlimited posts', 'AI generator', 'Advanced analytics', 'Team collaboration'] },
-  { id: 'enterprise', label: 'Enterprise', price: '$99', features: ['Unlimited accounts', 'Unlimited posts', 'Priority AI', 'Custom reports', 'API access', 'Dedicated support'] },
+  { id: 'free', label: 'Free', price: '$0', features: ['3 social accounts', '30 posts/month', 'Basic analytics'], highlight: false },
+  { id: 'pro', label: 'Pro', price: '$29', features: ['10 social accounts', 'Unlimited posts', 'AI generator', 'Advanced analytics', 'Team collaboration'], highlight: true },
+  { id: 'enterprise', label: 'Enterprise', price: '$99', features: ['Unlimited accounts', 'Unlimited posts', 'Priority AI', 'Custom reports', 'API access', 'Dedicated support'], highlight: false },
 ]
 
 // Notifications
@@ -104,22 +105,26 @@ const notificationSettings = ref({
     </AppTopbar>
 
     <div class="p-6">
-      <div class="flex gap-6">
+      <div class="flex gap-8">
         <!-- Tabs -->
         <div class="w-56 flex-shrink-0">
-          <nav class="space-y-1">
+          <nav class="space-y-1 sticky top-6">
             <button
               v-for="tab in tabs"
               :key="tab.id"
-              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
+              class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
               :class="
                 activeTab === tab.id
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-indigo-50 text-indigo-600 shadow-sm'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
               "
               @click="activeTab = tab.id"
             >
-              <component :is="tab.icon" class="w-5 h-5" />
+              <component
+                :is="tab.icon"
+                class="w-5 h-5 transition-colors duration-200"
+                :class="activeTab === tab.id ? 'text-indigo-500' : 'text-gray-400'"
+              />
               {{ tab.label }}
             </button>
           </nav>
@@ -128,318 +133,360 @@ const notificationSettings = ref({
         <!-- Content -->
         <div class="flex-1 max-w-2xl">
           <!-- Profile Tab -->
-          <div v-if="activeTab === 'profile'" class="space-y-6">
-            <div class="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-6">Profile Settings</h3>
+          <Transition
+            enter-active-class="transition ease-out duration-200"
+            enter-from-class="opacity-0 translate-y-1"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition ease-in duration-150"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 translate-y-1"
+            mode="out-in"
+          >
+            <div v-if="activeTab === 'profile'" key="profile" class="space-y-6">
+              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-6">Profile Settings</h3>
 
-              <!-- Avatar -->
-              <div class="flex items-center gap-4 mb-6">
-                <div class="w-16 h-16 rounded-full bg-brand-100 flex items-center justify-center">
-                  <span class="text-2xl font-bold text-brand-600">{{ profileName.charAt(0).toUpperCase() }}</span>
+                <!-- Avatar -->
+                <div class="flex items-center gap-5 mb-6">
+                  <div class="relative group">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center ring-4 ring-indigo-50">
+                      <span class="text-2xl font-bold text-white">{{ profileName.charAt(0).toUpperCase() }}</span>
+                    </div>
+                    <button class="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200">
+                      <CameraIcon class="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                  <div>
+                    <button class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                      <CameraIcon class="w-4 h-4" />
+                      Change Avatar
+                    </button>
+                    <p class="text-xs text-gray-400 mt-1.5">JPG, PNG or GIF. Max 2MB.</p>
+                  </div>
                 </div>
-                <button class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200">
-                  <CameraIcon class="w-4 h-4" />
-                  Change Avatar
-                </button>
-              </div>
 
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-                  <input
-                    v-model="profileName"
-                    type="text"
-                    class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-                  <input
-                    v-model="profileEmail"
-                    type="email"
-                    class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
-                  />
-                </div>
-                <div class="pt-2">
-                  <button
-                    class="flex items-center gap-2 bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200 disabled:opacity-50"
-                    :disabled="savingProfile"
-                    @click="saveProfile"
-                  >
-                    <LoadingSpinner v-if="savingProfile" size="sm" />
-                    <span v-else>Save Changes</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Workspace Tab -->
-          <div v-if="activeTab === 'workspace'" class="space-y-6">
-            <div class="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-6">Workspace Settings</h3>
-
-              <div class="flex items-center gap-4 mb-6">
-                <div class="w-16 h-16 rounded-xl bg-brand-500 flex items-center justify-center">
-                  <span class="text-2xl font-bold text-white">{{ workspaceName.charAt(0).toUpperCase() }}</span>
-                </div>
-                <button class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200">
-                  <CameraIcon class="w-4 h-4" />
-                  Change Logo
-                </button>
-              </div>
-
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Workspace Name</label>
-                  <input
-                    v-model="workspaceName"
-                    type="text"
-                    class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Workspace URL</label>
-                  <div class="flex items-center">
-                    <span class="text-sm text-gray-400 bg-gray-100 px-3 py-2.5 border border-r-0 border-gray-300 rounded-l-xl">flowgent.io/</span>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
                     <input
-                      v-model="workspaceSlug"
+                      v-model="profileName"
                       type="text"
-                      class="flex-1 px-4 py-2.5 border border-gray-300 rounded-r-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
                     />
                   </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                    <input
+                      v-model="profileEmail"
+                      type="email"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
+                    />
+                  </div>
+                  <div class="pt-2">
+                    <button
+                      class="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 shadow-sm shadow-indigo-600/20"
+                      :disabled="savingProfile"
+                      @click="saveProfile"
+                    >
+                      <LoadingSpinner v-if="savingProfile" size="sm" />
+                      <span v-else>Save Changes</span>
+                    </button>
+                  </div>
                 </div>
-                <div class="pt-2">
-                  <button
-                    class="flex items-center gap-2 bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200 disabled:opacity-50"
-                    :disabled="savingWorkspace"
-                    @click="saveWorkspace"
+              </div>
+            </div>
+
+            <!-- Workspace Tab -->
+            <div v-else-if="activeTab === 'workspace'" key="workspace" class="space-y-6">
+              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-6">Workspace Settings</h3>
+
+                <div class="flex items-center gap-5 mb-6">
+                  <div class="relative group">
+                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                      <span class="text-2xl font-bold text-white">{{ workspaceName.charAt(0).toUpperCase() }}</span>
+                    </div>
+                    <button class="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200">
+                      <CameraIcon class="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                  <div>
+                    <button class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                      <CameraIcon class="w-4 h-4" />
+                      Change Logo
+                    </button>
+                    <p class="text-xs text-gray-400 mt-1.5">Square image recommended. Max 2MB.</p>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Workspace Name</label>
+                    <input
+                      v-model="workspaceName"
+                      type="text"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Workspace URL</label>
+                    <div class="flex items-center">
+                      <span class="text-sm text-gray-400 bg-gray-100 px-4 py-2.5 border border-r-0 border-gray-200 rounded-l-xl">flowgent.io/</span>
+                      <input
+                        v-model="workspaceSlug"
+                        type="text"
+                        class="flex-1 px-4 py-2.5 border border-gray-200 rounded-r-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
+                      />
+                    </div>
+                  </div>
+                  <div class="pt-2">
+                    <button
+                      class="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 shadow-sm shadow-indigo-600/20"
+                      :disabled="savingWorkspace"
+                      @click="saveWorkspace"
+                    >
+                      <LoadingSpinner v-if="savingWorkspace" size="sm" />
+                      <span v-else>Save Changes</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Team Tab -->
+            <div v-else-if="activeTab === 'team'" key="team" class="space-y-6">
+              <!-- Invite -->
+              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Invite Team Member</h3>
+                <div class="flex gap-3">
+                  <input
+                    v-model="inviteEmail"
+                    type="email"
+                    placeholder="colleague@company.com"
+                    class="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
+                  />
+                  <select
+                    v-model="inviteRole"
+                    class="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 bg-gray-50/50"
                   >
-                    <LoadingSpinner v-if="savingWorkspace" size="sm" />
-                    <span v-else>Save Changes</span>
+                    <option value="admin">Admin</option>
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                  <button
+                    class="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all duration-200 shadow-sm shadow-indigo-600/20"
+                    @click="inviteMember"
+                  >
+                    <PlusIcon class="w-4 h-4" />
+                    Invite
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Team Tab -->
-          <div v-if="activeTab === 'team'" class="space-y-6">
-            <!-- Invite -->
-            <div class="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Invite Team Member</h3>
-              <div class="flex gap-3">
-                <input
-                  v-model="inviteEmail"
-                  type="email"
-                  placeholder="colleague@company.com"
-                  class="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
-                />
-                <select
-                  v-model="inviteRole"
-                  class="px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all duration-200"
-                >
-                  <option value="admin">Admin</option>
-                  <option value="editor">Editor</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-                <button
-                  class="flex items-center gap-2 bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200"
-                  @click="inviteMember"
-                >
-                  <PlusIcon class="w-4 h-4" />
-                  Invite
-                </button>
+              <!-- Members List -->
+              <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div class="px-6 py-4 border-b border-gray-100">
+                  <h3 class="text-sm font-semibold text-gray-900">Team Members ({{ teamMembers.length }})</h3>
+                </div>
+                <div class="divide-y divide-gray-100">
+                  <div
+                    v-for="member in teamMembers"
+                    :key="member.id"
+                    class="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-all duration-200"
+                  >
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                      <span class="text-sm font-semibold text-indigo-600">{{ member.name.charAt(0).toUpperCase() }}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-gray-900">{{ member.name }}</p>
+                      <p class="text-xs text-gray-500">{{ member.email }}</p>
+                    </div>
+                    <select
+                      v-if="member.role !== 'owner'"
+                      :value="member.role"
+                      class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 bg-transparent"
+                      @change="member.role = ($event.target as HTMLSelectElement).value as any"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="editor">Member</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <span
+                      v-else
+                      class="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700"
+                    >
+                      Owner
+                    </span>
+                    <button
+                      v-if="member.role !== 'owner'"
+                      class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                      @click="removeMember(member.id)"
+                    >
+                      <TrashIcon class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Members List -->
-            <div class="bg-white rounded-xl border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-900">Team Members ({{ teamMembers.length }})</h3>
-              </div>
-              <div class="divide-y divide-gray-100">
+            <!-- Billing Tab -->
+            <div v-else-if="activeTab === 'billing'" key="billing" class="space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div
-                  v-for="member in teamMembers"
-                  :key="member.id"
-                  class="flex items-center gap-4 px-6 py-4"
+                  v-for="plan in plans"
+                  :key="plan.id"
+                  class="relative bg-white rounded-xl border-2 p-6 transition-all duration-200 hover:shadow-md"
+                  :class="currentPlan === plan.id ? 'border-indigo-500 shadow-md shadow-indigo-500/10' : 'border-gray-200'"
                 >
-                  <div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-                    <span class="text-sm font-semibold text-brand-600">{{ member.name.charAt(0).toUpperCase() }}</span>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900">{{ member.name }}</p>
-                    <p class="text-xs text-gray-500">{{ member.email }}</p>
-                  </div>
-                  <span
-                    class="px-2 py-1 rounded-full text-xs font-medium capitalize"
-                    :class="{
-                      'bg-purple-100 text-purple-700': member.role === 'owner',
-                      'bg-blue-100 text-blue-700': member.role === 'admin',
-                      'bg-gray-100 text-gray-600': member.role === 'editor',
-                      'bg-gray-50 text-gray-500': member.role === 'viewer',
-                    }"
+                  <!-- Popular badge -->
+                  <div
+                    v-if="plan.highlight"
+                    class="absolute -top-3 left-1/2 -translate-x-1/2"
                   >
-                    {{ member.role }}
-                  </span>
+                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm">
+                      <StarIcon class="w-3 h-3" />
+                      Popular
+                    </span>
+                  </div>
+
+                  <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-bold text-gray-900">{{ plan.label }}</h4>
+                    <span v-if="currentPlan === plan.id" class="bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-0.5 rounded-full">Current</span>
+                  </div>
+                  <p class="text-3xl font-bold text-gray-900 mb-1">
+                    {{ plan.price }}
+                    <span class="text-sm font-normal text-gray-500">/month</span>
+                  </p>
+                  <ul class="space-y-2.5 mt-5 mb-6">
+                    <li
+                      v-for="feature in plan.features"
+                      :key="feature"
+                      class="flex items-center gap-2 text-sm text-gray-600"
+                    >
+                      <CheckIcon class="w-4 h-4 text-green-500 flex-shrink-0" />
+                      {{ feature }}
+                    </li>
+                  </ul>
                   <button
-                    v-if="member.role !== 'owner'"
-                    class="p-1 text-gray-400 hover:text-red-500 transition-all duration-200"
-                    @click="removeMember(member.id)"
+                    class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                    :class="
+                      currentPlan === plan.id
+                        ? 'bg-gray-100 text-gray-500 cursor-default'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-600/20'
+                    "
+                    :disabled="currentPlan === plan.id"
                   >
-                    <TrashIcon class="w-4 h-4" />
+                    {{ currentPlan === plan.id ? 'Current Plan' : 'Upgrade' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Invoice History -->
+              <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div class="px-6 py-4 border-b border-gray-100">
+                  <h3 class="text-sm font-semibold text-gray-900">Invoice History</h3>
+                </div>
+                <div class="divide-y divide-gray-100">
+                  <div v-for="i in 4" :key="i" class="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50/50 transition-all duration-200">
+                    <div>
+                      <p class="text-sm text-gray-700 font-medium">Pro Plan - Monthly</p>
+                      <p class="text-xs text-gray-400 mt-0.5">
+                        {{ new Date(Date.now() - 86400000 * 30 * i).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                      <span class="text-sm font-semibold text-gray-900">$29.00</span>
+                      <span class="text-xs text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full font-medium">Paid</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notifications Tab -->
+            <div v-else-if="activeTab === 'notifications'" key="notifications" class="space-y-6">
+              <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-6">Email Notifications</h3>
+                <div class="space-y-5">
+                  <label class="flex items-center justify-between cursor-pointer group py-1">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">New post created</p>
+                      <p class="text-xs text-gray-500 mt-0.5">Get notified when a team member creates a new post</p>
+                    </div>
+                    <div class="relative">
+                      <input v-model="notificationSettings.emailNewPost" type="checkbox" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 transition-all duration-200" />
+                      <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
+                    </div>
+                  </label>
+                  <label class="flex items-center justify-between cursor-pointer group py-1">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Post published</p>
+                      <p class="text-xs text-gray-500 mt-0.5">Get notified when a scheduled post is published</p>
+                    </div>
+                    <div class="relative">
+                      <input v-model="notificationSettings.emailPostPublished" type="checkbox" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 transition-all duration-200" />
+                      <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
+                    </div>
+                  </label>
+                  <label class="flex items-center justify-between cursor-pointer group py-1">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Weekly report</p>
+                      <p class="text-xs text-gray-500 mt-0.5">Receive a weekly performance summary</p>
+                    </div>
+                    <div class="relative">
+                      <input v-model="notificationSettings.emailWeeklyReport" type="checkbox" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 transition-all duration-200" />
+                      <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
+                    </div>
+                  </label>
+                  <label class="flex items-center justify-between cursor-pointer group py-1">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Team activity</p>
+                      <p class="text-xs text-gray-500 mt-0.5">Get notified about team member actions</p>
+                    </div>
+                    <div class="relative">
+                      <input v-model="notificationSettings.emailTeamActivity" type="checkbox" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 transition-all duration-200" />
+                      <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
+                    </div>
+                  </label>
+                  <label class="flex items-center justify-between cursor-pointer group py-1">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">AI Suggestions</p>
+                      <p class="text-xs text-gray-500 mt-0.5">Receive AI-powered content recommendations</p>
+                    </div>
+                    <div class="relative">
+                      <input v-model="notificationSettings.emailAiSuggestions" type="checkbox" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 transition-all duration-200" />
+                      <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
+                    </div>
+                  </label>
+                  <label class="flex items-center justify-between cursor-pointer group py-1">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Billing notifications</p>
+                      <p class="text-xs text-gray-500 mt-0.5">Get notified about invoices and payment status</p>
+                    </div>
+                    <div class="relative">
+                      <input v-model="notificationSettings.emailBilling" type="checkbox" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 transition-all duration-200" />
+                      <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
+                    </div>
+                  </label>
+                </div>
+
+                <div class="pt-6 mt-6 border-t border-gray-100">
+                  <button
+                    class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-all duration-200 shadow-sm shadow-indigo-600/20"
+                    @click="addToast('Notification preferences saved', 'success')"
+                  >
+                    Save Preferences
                   </button>
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- Billing Tab -->
-          <div v-if="activeTab === 'billing'" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div
-                v-for="plan in plans"
-                :key="plan.id"
-                class="bg-white rounded-xl border-2 p-6 transition-all duration-200"
-                :class="currentPlan === plan.id ? 'border-brand-500 shadow-md' : 'border-gray-200'"
-              >
-                <div class="flex items-center justify-between mb-4">
-                  <h4 class="text-lg font-bold text-gray-900">{{ plan.label }}</h4>
-                  <span v-if="currentPlan === plan.id" class="bg-brand-100 text-brand-700 text-xs font-medium px-2 py-0.5 rounded-full">Current</span>
-                </div>
-                <p class="text-3xl font-bold text-gray-900 mb-1">
-                  {{ plan.price }}
-                  <span class="text-sm font-normal text-gray-500">/month</span>
-                </p>
-                <ul class="space-y-2 mt-4 mb-6">
-                  <li
-                    v-for="feature in plan.features"
-                    :key="feature"
-                    class="flex items-center gap-2 text-sm text-gray-600"
-                  >
-                    <CheckIcon class="w-4 h-4 text-green-500 flex-shrink-0" />
-                    {{ feature }}
-                  </li>
-                </ul>
-                <button
-                  class="w-full py-2.5 rounded-xl text-sm font-medium transition-all duration-200"
-                  :class="
-                    currentPlan === plan.id
-                      ? 'bg-gray-100 text-gray-500 cursor-default'
-                      : 'bg-brand-500 text-white hover:bg-brand-600'
-                  "
-                  :disabled="currentPlan === plan.id"
-                >
-                  {{ currentPlan === plan.id ? 'Current Plan' : 'Upgrade' }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Invoice History -->
-            <div class="bg-white rounded-xl border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-900">Invoice History</h3>
-              </div>
-              <div class="divide-y divide-gray-100">
-                <div v-for="i in 4" :key="i" class="flex items-center justify-between px-6 py-3">
-                  <div>
-                    <p class="text-sm text-gray-700">Pro Plan - Monthly</p>
-                    <p class="text-xs text-gray-400">
-                      {{ new Date(Date.now() - 86400000 * 30 * i).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}
-                    </p>
-                  </div>
-                  <div class="flex items-center gap-4">
-                    <span class="text-sm font-medium text-gray-900">$29.00</span>
-                    <span class="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Paid</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Notifications Tab -->
-          <div v-if="activeTab === 'notifications'" class="space-y-6">
-            <div class="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-6">Email Notifications</h3>
-              <div class="space-y-4">
-                <label class="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">New post created</p>
-                    <p class="text-xs text-gray-500">Get notified when a team member creates a new post</p>
-                  </div>
-                  <div class="relative">
-                    <input v-model="notificationSettings.emailNewPost" type="checkbox" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-500 transition-all duration-200" />
-                    <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
-                  </div>
-                </label>
-                <label class="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">Post published</p>
-                    <p class="text-xs text-gray-500">Get notified when a scheduled post is published</p>
-                  </div>
-                  <div class="relative">
-                    <input v-model="notificationSettings.emailPostPublished" type="checkbox" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-500 transition-all duration-200" />
-                    <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
-                  </div>
-                </label>
-                <label class="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">Weekly report</p>
-                    <p class="text-xs text-gray-500">Receive a weekly performance summary</p>
-                  </div>
-                  <div class="relative">
-                    <input v-model="notificationSettings.emailWeeklyReport" type="checkbox" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-500 transition-all duration-200" />
-                    <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
-                  </div>
-                </label>
-                <label class="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">Team activity</p>
-                    <p class="text-xs text-gray-500">Get notified about team member actions</p>
-                  </div>
-                  <div class="relative">
-                    <input v-model="notificationSettings.emailTeamActivity" type="checkbox" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-500 transition-all duration-200" />
-                    <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
-                  </div>
-                </label>
-                <label class="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">AI Suggestions</p>
-                    <p class="text-xs text-gray-500">Receive AI-powered content recommendations</p>
-                  </div>
-                  <div class="relative">
-                    <input v-model="notificationSettings.emailAiSuggestions" type="checkbox" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-500 transition-all duration-200" />
-                    <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
-                  </div>
-                </label>
-                <label class="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">Billing notifications</p>
-                    <p class="text-xs text-gray-500">Get notified about invoices and payment status</p>
-                  </div>
-                  <div class="relative">
-                    <input v-model="notificationSettings.emailBilling" type="checkbox" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-500 transition-all duration-200" />
-                    <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow-sm peer-checked:translate-x-5 transition-all duration-200" />
-                  </div>
-                </label>
-              </div>
-
-              <div class="pt-6 mt-6 border-t border-gray-200">
-                <button
-                  class="bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200"
-                  @click="addToast('Notification preferences saved', 'success')"
-                >
-                  Save Preferences
-                </button>
-              </div>
-            </div>
-          </div>
+          </Transition>
         </div>
       </div>
     </div>

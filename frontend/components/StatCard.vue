@@ -7,35 +7,48 @@ defineProps<{
   change?: number
   icon: any
   color?: string
+  gradient?: string
 }>()
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-all duration-200">
-    <div class="flex items-start justify-between">
+  <div
+    class="relative overflow-hidden rounded-xl p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+    :class="gradient || 'bg-white border border-gray-200'"
+  >
+    <!-- Background decorative element -->
+    <div
+      v-if="gradient"
+      class="absolute top-0 right-0 w-32 h-32 rounded-full opacity-20 -translate-y-8 translate-x-8 bg-white/10 blur-2xl"
+    />
+
+    <div class="relative flex items-start justify-between">
       <div>
-        <p class="text-sm font-medium text-gray-500">{{ title }}</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1">{{ value }}</p>
+        <p class="text-sm font-medium" :class="gradient ? 'text-white/80' : 'text-gray-500'">{{ title }}</p>
+        <p class="text-3xl font-bold mt-1" :class="gradient ? 'text-white' : 'text-gray-900'">{{ value }}</p>
         <div v-if="change !== undefined" class="flex items-center gap-1 mt-2">
-          <ArrowUpIcon v-if="change >= 0" class="w-3.5 h-3.5 text-green-500" />
-          <ArrowDownIcon v-else class="w-3.5 h-3.5 text-red-500" />
-          <span
-            class="text-xs font-medium"
-            :class="change >= 0 ? 'text-green-600' : 'text-red-600'"
+          <div
+            class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium"
+            :class="gradient
+              ? (change >= 0 ? 'bg-white/20 text-white' : 'bg-white/20 text-white')
+              : (change >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')
+            "
           >
+            <ArrowUpIcon v-if="change >= 0" class="w-3 h-3" />
+            <ArrowDownIcon v-else class="w-3 h-3" />
             {{ Math.abs(change) }}%
-          </span>
-          <span class="text-xs text-gray-400">vs last month</span>
+          </div>
+          <span class="text-xs" :class="gradient ? 'text-white/60' : 'text-gray-400'">vs last month</span>
         </div>
       </div>
       <div
-        class="w-10 h-10 rounded-lg flex items-center justify-center"
-        :class="color || 'bg-brand-100'"
+        class="w-11 h-11 rounded-xl flex items-center justify-center"
+        :class="gradient ? 'bg-white/20 backdrop-blur-sm' : (color || 'bg-brand-100')"
       >
         <component
           :is="icon"
           class="w-5 h-5"
-          :class="color ? 'text-white' : 'text-brand-600'"
+          :class="gradient ? 'text-white' : (color ? 'text-white' : 'text-brand-600')"
         />
       </div>
     </div>

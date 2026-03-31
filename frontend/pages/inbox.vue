@@ -7,6 +7,7 @@ import {
   EllipsisHorizontalIcon,
   EnvelopeIcon,
   EnvelopeOpenIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/vue/24/outline'
 
 const { addToast } = useToast()
@@ -14,6 +15,7 @@ const { addToast } = useToast()
 const selectedPlatform = ref('all')
 const selectedConversation = ref<string | null>('1')
 const replyText = ref('')
+const searchQuery = ref('')
 
 const platformTabs = [
   { id: 'all', label: 'All' },
@@ -106,13 +108,34 @@ const conversations = ref<Conversation[]>([
 ])
 
 const filteredConversations = computed(() => {
-  if (selectedPlatform.value === 'all') return conversations.value
-  return conversations.value.filter(c => c.platform === selectedPlatform.value)
+  let result = conversations.value
+  if (selectedPlatform.value !== 'all') {
+    result = result.filter(c => c.platform === selectedPlatform.value)
+  }
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(c => c.name.toLowerCase().includes(q) || c.lastMessage.toLowerCase().includes(q))
+  }
+  return result
 })
 
 const activeConversation = computed(() => {
   return conversations.value.find(c => c.id === selectedConversation.value)
 })
+
+const unreadCount = computed(() => {
+  return conversations.value.filter(c => c.unread).length
+})
+
+const platformColor = (platform: string) => {
+  const colors: Record<string, string> = {
+    linkedin: 'bg-[#0077B5]',
+    facebook: 'bg-[#1877F2]',
+    twitter: 'bg-[#1DA1F2]',
+    instagram: 'bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#F56040]',
+  }
+  return colors[platform] || 'bg-gray-400'
+}
 
 const selectConversation = (id: string) => {
   selectedConversation.value = id
@@ -155,21 +178,41 @@ const aiQuickReply = () => {
 
     <div class="flex h-[calc(100vh-64px)]">
       <!-- Conversations List -->
-      <div class="w-80 border-r border-gray-200 bg-white flex flex-col">
+      <div class="w-[340px] border-r border-gray-200 bg-white flex flex-col">
+        <!-- Search -->
+        <div class="px-4 pt-4 pb-2">
+          <div class="relative">
+            <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search conversations..."
+              class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
+            />
+          </div>
+        </div>
+
         <!-- Platform Tabs -->
-        <div class="flex items-center gap-1 px-3 py-3 border-b border-gray-200 overflow-x-auto">
+        <div class="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto">
           <button
             v-for="tab in platformTabs"
             :key="tab.id"
             class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200"
             :class="
               selectedPlatform === tab.id
-                ? 'bg-brand-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
             "
             @click="selectedPlatform = tab.id"
           >
             {{ tab.label }}
+            <span
+              v-if="tab.id === 'all' && unreadCount > 0"
+              class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full"
+              :class="selectedPlatform === 'all' ? 'bg-white/20 text-white' : 'bg-red-500 text-white'"
+            >
+              {{ unreadCount }}
+            </span>
           </button>
         </div>
 
@@ -178,49 +221,72 @@ const aiQuickReply = () => {
           <div
             v-for="conv in filteredConversations"
             :key="conv.id"
-            class="flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-50 transition-all duration-200"
-            :class="selectedConversation === conv.id ? 'bg-brand-50' : 'hover:bg-gray-50'"
+            class="flex items-start gap-3 px-4 py-3.5 cursor-pointer border-b border-gray-50 transition-all duration-200"
+            :class="selectedConversation === conv.id ? 'bg-indigo-50/60 border-l-2 border-l-indigo-500' : 'hover:bg-gray-50 border-l-2 border-l-transparent'"
             @click="selectConversation(conv.id)"
           >
-            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 relative">
-              <span class="text-sm font-semibold text-gray-600">{{ conv.name.charAt(0) }}</span>
+            <div class="relative flex-shrink-0">
+              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <span class="text-sm font-semibold text-gray-600">{{ conv.name.charAt(0) }}</span>
+              </div>
+              <!-- Platform badge -->
+              <div
+                class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white"
+                :class="platformColor(conv.platform)"
+              >
+                <span class="text-[6px] text-white font-bold">{{ conv.platform.charAt(0).toUpperCase() }}</span>
+              </div>
+              <!-- Unread dot -->
               <div
                 v-if="conv.unread"
-                class="absolute -top-0.5 -right-0.5 w-3 h-3 bg-brand-500 rounded-full border-2 border-white"
+                class="absolute -top-0.5 -left-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white"
               />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between mb-0.5">
-                <span class="text-sm font-semibold text-gray-900 truncate" :class="{ 'font-bold': conv.unread }">
+                <span
+                  class="text-sm truncate"
+                  :class="conv.unread ? 'font-bold text-gray-900' : 'font-medium text-gray-700'"
+                >
                   {{ conv.name }}
                 </span>
-                <span class="text-[10px] text-gray-400 flex-shrink-0">{{ conv.time }}</span>
+                <span class="text-[10px] text-gray-400 flex-shrink-0 ml-2">{{ conv.time }}</span>
               </div>
-              <div class="flex items-center gap-1.5">
-                <PlatformIcon :platform="conv.platform" size="xs" />
-                <p class="text-xs text-gray-500 truncate" :class="{ 'font-medium text-gray-700': conv.unread }">
-                  {{ conv.lastMessage }}
-                </p>
-              </div>
+              <p
+                class="text-xs truncate"
+                :class="conv.unread ? 'font-medium text-gray-700' : 'text-gray-500'"
+              >
+                {{ conv.lastMessage }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div v-if="filteredConversations.length === 0" class="flex items-center justify-center py-12">
+            <div class="text-center">
+              <InboxIcon class="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p class="text-sm text-gray-500">No conversations found</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Message Thread -->
-      <div class="flex-1 flex flex-col bg-gray-50">
+      <div class="flex-1 flex flex-col bg-gray-50/50">
         <template v-if="activeConversation">
           <!-- Thread Header -->
-          <div class="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
+          <div class="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                 <span class="text-sm font-semibold text-gray-600">{{ activeConversation.name.charAt(0) }}</span>
               </div>
               <div>
                 <h3 class="text-sm font-semibold text-gray-900">{{ activeConversation.name }}</h3>
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1.5">
                   <PlatformIcon :platform="activeConversation.platform" size="xs" />
                   <span class="text-xs text-gray-500 capitalize">{{ activeConversation.platform }}</span>
+                  <span class="text-xs text-gray-300">-</span>
+                  <span class="text-xs text-green-500 font-medium">Online</span>
                 </div>
               </div>
             </div>
@@ -230,7 +296,7 @@ const aiQuickReply = () => {
           </div>
 
           <!-- Messages -->
-          <div class="flex-1 overflow-y-auto p-6 space-y-4">
+          <div class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
             <div
               v-for="msg in activeConversation.messages"
               :key="msg.id"
@@ -239,22 +305,22 @@ const aiQuickReply = () => {
             >
               <div
                 v-if="!msg.isMe"
-                class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0"
+                class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0"
               >
-                <span class="text-xs font-semibold text-gray-600">{{ msg.avatar }}</span>
+                <span class="text-[10px] font-semibold text-gray-600">{{ msg.avatar }}</span>
               </div>
               <div
-                class="max-w-md px-4 py-2.5 rounded-2xl"
+                class="max-w-md px-4 py-3 rounded-2xl shadow-sm"
                 :class="
                   msg.isMe
-                    ? 'bg-brand-500 text-white rounded-br-md'
-                    : 'bg-white text-gray-700 border border-gray-200 rounded-bl-md'
+                    ? 'bg-indigo-600 text-white rounded-br-md'
+                    : 'bg-white text-gray-700 border border-gray-100 rounded-bl-md'
                 "
               >
                 <p class="text-sm leading-relaxed">{{ msg.content }}</p>
                 <p
-                  class="text-[10px] mt-1"
-                  :class="msg.isMe ? 'text-white/60' : 'text-gray-400'"
+                  class="text-[10px] mt-1.5"
+                  :class="msg.isMe ? 'text-indigo-200' : 'text-gray-400'"
                 >
                   {{ msg.time }}
                 </p>
@@ -263,28 +329,28 @@ const aiQuickReply = () => {
           </div>
 
           <!-- Reply Input -->
-          <div class="bg-white border-t border-gray-200 p-4">
+          <div class="bg-white border-t border-gray-200 p-4 shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
             <div class="flex items-end gap-3">
               <div class="flex-1">
                 <textarea
                   v-model="replyText"
                   rows="2"
-                  class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none transition-all duration-200"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none transition-all duration-200 bg-gray-50/50"
                   placeholder="Type your reply..."
                   @keydown.enter.exact.prevent="sendReply"
                 />
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 pb-0.5">
                 <button
-                  class="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-xl transition-all duration-200"
+                  class="flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all duration-200 border border-indigo-100"
                   title="AI Quick Reply"
                   @click="aiQuickReply"
                 >
                   <SparklesIcon class="w-4 h-4" />
-                  AI
+                  <span class="hidden sm:inline">AI Reply</span>
                 </button>
                 <button
-                  class="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-white bg-brand-500 hover:bg-brand-600 rounded-xl transition-all duration-200 disabled:opacity-50"
+                  class="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-sm shadow-indigo-600/20"
                   :disabled="!replyText.trim()"
                   @click="sendReply"
                 >
@@ -300,9 +366,11 @@ const aiQuickReply = () => {
         <template v-else>
           <div class="flex-1 flex items-center justify-center">
             <div class="text-center">
-              <InboxIcon class="w-16 h-16 text-gray-300 mx-auto mb-3" />
+              <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <InboxIcon class="w-8 h-8 text-gray-400" />
+              </div>
               <h3 class="text-lg font-semibold text-gray-900 mb-1">Select a conversation</h3>
-              <p class="text-sm text-gray-500">Choose a conversation from the list to start replying</p>
+              <p class="text-sm text-gray-500 max-w-xs">Choose a conversation from the list to start replying</p>
             </div>
           </div>
         </template>
