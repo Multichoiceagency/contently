@@ -1,5 +1,6 @@
 export default defineNuxtConfig({
-  devtools: { enabled: true },
+  devtools: { enabled: false },
+  builder: 'vite',
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
