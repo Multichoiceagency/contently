@@ -16,9 +16,11 @@
 #   JWT_SECRET=<random-64-chars>
 #   JWT_REFRESH_SECRET=<random-64-chars>
 #   OPENAI_API_KEY=sk-...
-#   NUXT_PUBLIC_API_BASE=https://contentrich.nl/api
+#   NUXT_PUBLIC_API_BASE=https://api.contentrich.nl
+#   NUXT_PUBLIC_MAIN_DOMAIN=contentrich.nl
+#   NUXT_PUBLIC_DASHBOARD_DOMAIN=dashboard.contentrich.nl
 #   COOLIFY_DOMAIN=contentrich.nl
-#   CORS_ORIGIN=https://contentrich.nl
+#   CORS_ORIGIN=https://contentrich.nl,https://dashboard.contentrich.nl
 
 version: '3.8'
 
@@ -65,7 +67,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      CORS_ORIGIN: https://${COOLIFY_DOMAIN:-contentrich.nl}
+      CORS_ORIGIN: https://${COOLIFY_DOMAIN:-contentrich.nl},https://dashboard.${COOLIFY_DOMAIN:-contentrich.nl}
       PORT: 4000
       NODE_ENV: production
     depends_on:
@@ -82,37 +84,55 @@ services:
     networks:
       - flowgent
     labels:
+      # API via api.contentrich.nl (subdomain)
       - "traefik.enable=true"
-      - "traefik.http.routers.flowgent-api.rule=Host(`${COOLIFY_DOMAIN:-contentrich.nl}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.flowgent-api.rule=Host(`api.${COOLIFY_DOMAIN:-contentrich.nl}`)"
       - "traefik.http.routers.flowgent-api.entrypoints=https"
       - "traefik.http.routers.flowgent-api.tls=true"
       - "traefik.http.routers.flowgent-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.flowgent-api.middlewares=strip-api-prefix,api-headers"
-      - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
-      - "traefik.http.middlewares.api-headers.headers.accesscontrolalloworiginlist=https://${COOLIFY_DOMAIN:-contentrich.nl}"
+      - "traefik.http.routers.flowgent-api.middlewares=api-headers"
+      - "traefik.http.middlewares.api-headers.headers.accesscontrolalloworiginlist=https://${COOLIFY_DOMAIN:-contentrich.nl},https://dashboard.${COOLIFY_DOMAIN:-contentrich.nl}"
       - "traefik.http.middlewares.api-headers.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
       - "traefik.http.middlewares.api-headers.headers.accesscontrolallowheaders=Content-Type,Authorization,x-workspace-id"
+      - "traefik.http.middlewares.api-headers.headers.accesscontrolallowcredentials=true"
       - "traefik.http.services.flowgent-api.loadbalancer.server.port=4000"
+      # API via contentrich.nl/api (path-based, backwards compat)
+      - "traefik.http.routers.flowgent-api-path.rule=Host(`${COOLIFY_DOMAIN:-contentrich.nl}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.flowgent-api-path.entrypoints=https"
+      - "traefik.http.routers.flowgent-api-path.tls=true"
+      - "traefik.http.routers.flowgent-api-path.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.flowgent-api-path.middlewares=strip-api-prefix,api-headers"
+      - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NUXT_PUBLIC_API_BASE: https://${COOLIFY_DOMAIN:-contentrich.nl}/api
+        NUXT_PUBLIC_API_BASE: https://api.${COOLIFY_DOMAIN:-contentrich.nl}
     restart: unless-stopped
     environment:
-      NUXT_PUBLIC_API_BASE: https://${COOLIFY_DOMAIN:-contentrich.nl}/api
+      NUXT_PUBLIC_API_BASE: https://api.${COOLIFY_DOMAIN:-contentrich.nl}
+      NUXT_PUBLIC_MAIN_DOMAIN: ${COOLIFY_DOMAIN:-contentrich.nl}
+      NUXT_PUBLIC_DASHBOARD_DOMAIN: dashboard.${COOLIFY_DOMAIN:-contentrich.nl}
     depends_on:
       - backend
     networks:
       - flowgent
     labels:
       - "traefik.enable=true"
+      # Main domain: contentrich.nl
       - "traefik.http.routers.flowgent-frontend.rule=Host(`${COOLIFY_DOMAIN:-contentrich.nl}`)"
       - "traefik.http.routers.flowgent-frontend.entrypoints=https"
       - "traefik.http.routers.flowgent-frontend.tls=true"
       - "traefik.http.routers.flowgent-frontend.tls.certresolver=letsencrypt"
+      # Dashboard subdomain: dashboard.contentrich.nl
+      - "traefik.http.routers.flowgent-dashboard.rule=Host(`dashboard.${COOLIFY_DOMAIN:-contentrich.nl}`)"
+      - "traefik.http.routers.flowgent-dashboard.entrypoints=https"
+      - "traefik.http.routers.flowgent-dashboard.tls=true"
+      - "traefik.http.routers.flowgent-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.flowgent-dashboard.service=flowgent-frontend"
+      # WWW redirect
       - "traefik.http.routers.flowgent-www.rule=Host(`www.${COOLIFY_DOMAIN:-contentrich.nl}`)"
       - "traefik.http.routers.flowgent-www.entrypoints=https"
       - "traefik.http.routers.flowgent-www.tls=true"

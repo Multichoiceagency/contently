@@ -1,8 +1,13 @@
 export default defineNuxtRouteMiddleware((to) => {
-  const dashboardDomain = 'dashboard.contentrich.nl'
-  const mainDomain = 'contentrich.nl'
+  const config = useRuntimeConfig()
+  const dashboardDomain = config.public.dashboardDomain || 'dashboard.contentrich.nl'
+  const mainDomain = config.public.mainDomain || 'contentrich.nl'
 
-  // Detect which subdomain we're on (works for SSR + client)
+  // Read token from cookie (shared across subdomains, works on SSR + client)
+  const tokenCookie = useCookie('flowgent_token')
+  const hasToken = !!tokenCookie.value
+
+  // Detect which subdomain we're on
   let hostname = ''
   if (import.meta.server) {
     const event = useRequestEvent()
@@ -12,7 +17,8 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   const isDashboard = hostname === dashboardDomain || hostname.startsWith('dashboard.')
-  const isMainSite = !isDashboard
+  const isLocalDev = hostname === 'localhost' || hostname === '127.0.0.1'
+  const isMainSite = !isDashboard && !isLocalDev
 
   // Public/landing routes (only available on main domain)
   const publicRoutes = [
@@ -40,60 +46,35 @@ export default defineNuxtRouteMiddleware((to) => {
 
   // --- MAIN DOMAIN (contentrich.nl) ---
   if (isMainSite) {
-    // Allow all public and auth routes on the main domain
     if (isPublicRoute || isAuthRoute) {
       return
     }
     // Protected routes on main domain → redirect to dashboard subdomain
-    if (import.meta.client) {
-      const token = localStorage.getItem('flowgent_token')
-      if (token) {
-        window.location.href = `https://${dashboardDomain}${to.path}`
-        return abortNavigation()
-      }
-      return navigateTo('/auth/login')
+    if (hasToken) {
+      return navigateTo(`https://${dashboardDomain}${to.path}`, { external: true })
     }
-    return
+    return navigateTo(`https://${dashboardDomain}/auth/login`, { external: true })
   }
 
   // --- DASHBOARD SUBDOMAIN (dashboard.contentrich.nl) ---
   if (isDashboard) {
-    // Redirect landing page to /dashboard on the subdomain
     if (to.path === '/') {
       return navigateTo('/dashboard')
     }
-
-    // Allow auth routes
     if (isAuthRoute) {
       return
     }
-
-    // Check for token on protected routes
-    if (import.meta.client) {
-      const token = localStorage.getItem('flowgent_token')
-      if (!token) {
-        return navigateTo('/auth/login')
-      }
+    if (!hasToken) {
+      return navigateTo('/auth/login')
     }
     return
   }
 
   // --- LOCAL DEV / FALLBACK ---
-  // Allow auth routes
-  if (isAuthRoute) {
+  if (isAuthRoute || isPublicRoute) {
     return
   }
-
-  // Allow public routes
-  if (isPublicRoute) {
-    return
-  }
-
-  // Check for token on protected routes
-  if (import.meta.client) {
-    const token = localStorage.getItem('flowgent_token')
-    if (!token) {
-      return navigateTo('/auth/login')
-    }
+  if (!hasToken) {
+    return navigateTo('/auth/login')
   }
 })

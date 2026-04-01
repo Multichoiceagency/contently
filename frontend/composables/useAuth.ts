@@ -1,5 +1,18 @@
 import { useAuthStore } from '~/stores/auth'
 
+/**
+ * Get the cookie domain for cross-subdomain sharing.
+ * Returns `.contentrich.nl` in production so cookies are shared
+ * between contentrich.nl and dashboard.contentrich.nl.
+ * Returns undefined on localhost (default browser behavior).
+ */
+function getCookieDomain(): string | undefined {
+  const config = useRuntimeConfig()
+  const mainDomain = config.public.mainDomain as string || 'contentrich.nl'
+  if (mainDomain === 'localhost' || mainDomain === '127.0.0.1') return undefined
+  return `.${mainDomain}`
+}
+
 export function useAuth() {
   const authStore = useAuthStore()
   const router = useRouter()
@@ -8,13 +21,48 @@ export function useAuth() {
   const apiBase = config.public.apiBase as string
   const dashboardDomain = config.public.dashboardDomain as string || 'dashboard.contentrich.nl'
 
+  // Shared cookies across subdomains (works on SSR + client)
+  const tokenCookie = useCookie('flowgent_token', {
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+    path: '/',
+    domain: getCookieDomain(),
+    sameSite: 'lax',
+    secure: true,
+  })
+  const refreshCookie = useCookie('flowgent_refresh', {
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    path: '/',
+    domain: getCookieDomain(),
+    sameSite: 'lax',
+    secure: true,
+  })
+  const userCookie = useCookie('flowgent_user', {
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+    domain: getCookieDomain(),
+    sameSite: 'lax',
+    secure: true,
+  })
+
+  const saveTokens = (accessToken: string, refreshToken: string, user: any) => {
+    tokenCookie.value = accessToken
+    refreshCookie.value = refreshToken
+    userCookie.value = JSON.stringify(user)
+    authStore.setAuth(user, accessToken)
+  }
+
+  const clearTokens = () => {
+    tokenCookie.value = null
+    refreshCookie.value = null
+    userCookie.value = null
+    authStore.clearAuth()
+  }
+
   const goToDashboard = () => {
     if (import.meta.client) {
       const hostname = window.location.hostname
       const isDashboard = hostname.startsWith('dashboard.')
-      if (isDashboard) {
-        router.push('/dashboard')
-      } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      if (isDashboard || hostname === 'localhost' || hostname === '127.0.0.1') {
         router.push('/dashboard')
       } else {
         window.location.href = `https://${dashboardDomain}/dashboard`
@@ -29,10 +77,7 @@ export function useAuth() {
         body: { email, password },
       })
 
-      authStore.setAuth(res.user, res.accessToken)
-      localStorage.setItem('flowgent_token', res.accessToken)
-      localStorage.setItem('flowgent_refresh', res.refreshToken)
-      localStorage.setItem('flowgent_user', JSON.stringify(res.user))
+      saveTokens(res.accessToken, res.refreshToken, res.user)
 
       goToDashboard()
       return { success: true }
@@ -72,10 +117,7 @@ export function useAuth() {
         body: { email, code },
       })
 
-      authStore.setAuth(res.user, res.accessToken)
-      localStorage.setItem('flowgent_token', res.accessToken)
-      localStorage.setItem('flowgent_refresh', res.refreshToken)
-      localStorage.setItem('flowgent_user', JSON.stringify(res.user))
+      saveTokens(res.accessToken, res.refreshToken, res.user)
 
       goToDashboard()
       return { success: true }
@@ -131,10 +173,7 @@ export function useAuth() {
         body: { credential },
       })
 
-      authStore.setAuth(res.user, res.accessToken)
-      localStorage.setItem('flowgent_token', res.accessToken)
-      localStorage.setItem('flowgent_refresh', res.refreshToken)
-      localStorage.setItem('flowgent_user', JSON.stringify(res.user))
+      saveTokens(res.accessToken, res.refreshToken, res.user)
 
       goToDashboard()
       return { success: true }
@@ -146,19 +185,16 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      const refreshToken = localStorage.getItem('flowgent_refresh')
+      const rt = refreshCookie.value
       if (authStore.token) {
         await $fetch(`${apiBase}/auth/logout`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${authStore.token}` },
-          body: { refreshToken },
+          body: { refreshToken: rt },
         }).catch(() => {})
       }
     } finally {
-      authStore.clearAuth()
-      localStorage.removeItem('flowgent_token')
-      localStorage.removeItem('flowgent_refresh')
-      localStorage.removeItem('flowgent_user')
+      clearTokens()
       if (import.meta.client) {
         const hostname = window.location.hostname
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -172,39 +208,36 @@ export function useAuth() {
   }
 
   const restoreSession = async () => {
-    if (import.meta.server) return
-    const token = localStorage.getItem('flowgent_token')
-    const userJson = localStorage.getItem('flowgent_user')
+    const token = tokenCookie.value
+    const userJson = userCookie.value
     if (token && userJson) {
       try {
-        const user = JSON.parse(userJson)
+        const user = typeof userJson === 'string' ? JSON.parse(userJson) : userJson
         authStore.setAuth(user, token)
 
-        // Validate token with /auth/me
-        const me = await $fetch<any>(`${apiBase}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => null)
+        if (import.meta.client) {
+          const me = await $fetch<any>(`${apiBase}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => null)
 
-        if (me) {
-          authStore.setAuth(me, token)
-          localStorage.setItem('flowgent_user', JSON.stringify(me))
-        } else {
-          // Try refresh
-          const refreshToken = localStorage.getItem('flowgent_refresh')
-          if (refreshToken) {
-            try {
-              const res = await $fetch<any>(`${apiBase}/auth/refresh`, {
-                method: 'POST',
-                body: { refreshToken },
-              })
-              authStore.setAuth(user, res.accessToken)
-              localStorage.setItem('flowgent_token', res.accessToken)
-              localStorage.setItem('flowgent_refresh', res.refreshToken)
-            } catch {
+          if (me) {
+            authStore.setAuth(me, token)
+            userCookie.value = JSON.stringify(me)
+          } else {
+            const rt = refreshCookie.value
+            if (rt) {
+              try {
+                const res = await $fetch<any>(`${apiBase}/auth/refresh`, {
+                  method: 'POST',
+                  body: { refreshToken: rt },
+                })
+                saveTokens(res.accessToken, res.refreshToken, user)
+              } catch {
+                logout()
+              }
+            } else {
               logout()
             }
-          } else {
-            logout()
           }
         }
       } catch {
