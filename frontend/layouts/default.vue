@@ -59,12 +59,18 @@ const breadcrumbs = computed(() => {
   const routeLabels: Record<string, string> = {
     '/dashboard': 'Dashboard',
     '/calendar': 'Calendar',
-    '/posts': 'Posts',
-    '/ai': 'AI Generator',
-    '/inbox': 'Inbox',
-    '/analytics': 'Analytics',
+    '/posts': 'Publish',
+    '/ai': 'AI Studio',
+    '/inbox': 'Engage',
+    '/analytics': 'Analyze',
     '/social': 'Social Accounts',
     '/settings': 'Settings',
+    '/discover': 'Discover',
+    '/media': 'Media Library',
+    '/clients': 'Clients',
+    '/approvals': 'Approvals',
+    '/competitors': 'Competitors',
+    '/onboarding': 'Getting Started',
   }
 
   if (path !== '/dashboard') {

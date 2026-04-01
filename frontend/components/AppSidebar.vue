@@ -1,33 +1,52 @@
 <script setup lang="ts">
 import {
   HomeIcon,
+  PaperAirplaneIcon,
   CalendarIcon,
-  DocumentTextIcon,
   SparklesIcon,
-  InboxIcon,
   ChartBarIcon,
-  ShareIcon,
+  ChatBubbleLeftRightIcon,
+  MagnifyingGlassIcon,
+  PhotoIcon,
+  UsersIcon,
+  ShieldCheckIcon,
+  BoltIcon,
   CogIcon,
   ArrowRightOnRectangleIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
-  BoltIcon,
+  ChevronDownIcon,
+  GlobeAltIcon,
+  RectangleStackIcon,
+  UserGroupIcon,
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const { logout, user } = useAuth()
 
 const collapsed = ref(false)
+const moreOpen = ref(false)
 
-const navItems = [
-  { label: 'Dashboard', icon: HomeIcon, to: '/dashboard', badge: false },
-  { label: 'Calendar', icon: CalendarIcon, to: '/calendar', badge: false },
-  { label: 'Posts', icon: DocumentTextIcon, to: '/posts', badge: false },
-  { label: 'AI Generator', icon: SparklesIcon, to: '/ai', badge: false },
-  { label: 'Inbox', icon: InboxIcon, to: '/inbox', badge: true },
-  { label: 'Analytics', icon: ChartBarIcon, to: '/analytics', badge: false },
-  { label: 'Social Accounts', icon: ShareIcon, to: '/social', badge: false },
-  { label: 'Settings', icon: CogIcon, to: '/settings', badge: false },
+const mainNav = [
+  { label: 'Dashboard', icon: HomeIcon, to: '/dashboard' },
+  { label: 'Publish', icon: PaperAirplaneIcon, to: '/posts', badge: false },
+  { label: 'Calendar', icon: CalendarIcon, to: '/calendar', tag: 'New' },
+  { label: 'AI Studio', icon: SparklesIcon, to: '/ai' },
+  { label: 'Analyze', icon: ChartBarIcon, to: '/analytics' },
+  { label: 'Engage', icon: ChatBubbleLeftRightIcon, to: '/inbox', badge: true },
+  { label: 'Discover', icon: MagnifyingGlassIcon, to: '/discover' },
+]
+
+const featureNav = [
+  { label: 'Media Library', icon: PhotoIcon, to: '/media' },
+  { label: 'Clients', icon: UserGroupIcon, to: '/clients' },
+  { label: 'Approvals', icon: ShieldCheckIcon, to: '/approvals' },
+  { label: 'Social Accounts', icon: GlobeAltIcon, to: '/social' },
+  { label: 'Competitors', icon: RectangleStackIcon, to: '/competitors' },
+]
+
+const bottomNav = [
+  { label: 'Settings', icon: CogIcon, to: '/settings' },
 ]
 
 const isActive = (path: string) => {
@@ -61,7 +80,7 @@ const toggleCollapse = () => {
         v-if="!collapsed"
         class="font-bold text-lg tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
       >
-        Flowgent
+        Contentrich
       </span>
     </div>
 
@@ -70,32 +89,97 @@ const toggleCollapse = () => {
       <WorkspaceSelector />
     </div>
 
-    <!-- Navigation -->
-    <nav class="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+    <!-- Main Navigation -->
+    <nav class="flex-1 px-3 py-1 space-y-0.5 overflow-y-auto scrollbar-thin">
+      <!-- Primary Nav -->
       <NuxtLink
-        v-for="item in navItems"
+        v-for="item in mainNav"
         :key="item.to"
         :to="item.to"
-        class="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
+        class="relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
         :class="
           isActive(item.to)
-            ? 'bg-slate-800/60 text-white border-l-2 border-indigo-500 ml-0 pl-[10px]'
+            ? 'bg-indigo-600/20 text-white'
             : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
         "
       >
         <component
           :is="item.icon"
           class="w-5 h-5 flex-shrink-0 transition-colors duration-200"
-          :class="isActive(item.to) ? 'text-indigo-400' : 'text-slate-400'"
+          :class="isActive(item.to) ? 'text-indigo-400' : 'text-slate-500'"
         />
-        <span v-if="!collapsed">{{ item.label }}</span>
+        <span v-if="!collapsed" class="flex-1">{{ item.label }}</span>
 
-        <!-- Notification dot for Inbox -->
+        <!-- Tag -->
+        <span
+          v-if="!collapsed && item.tag"
+          class="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-400 rounded"
+        >
+          {{ item.tag }}
+        </span>
+
+        <!-- Badge dot -->
         <span
           v-if="item.badge"
           class="absolute w-2 h-2 bg-red-500 rounded-full"
-          :class="collapsed ? 'top-1.5 right-1.5' : '-top-1 -right-1'"
+          :class="collapsed ? 'top-1 right-1' : 'top-1 right-2'"
         />
+      </NuxtLink>
+
+      <!-- Divider -->
+      <div class="my-3 mx-2 border-t border-white/5" />
+
+      <!-- Features section -->
+      <div v-if="!collapsed" class="px-3 mb-1">
+        <button
+          class="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-400 transition-colors"
+          @click="moreOpen = !moreOpen"
+        >
+          Features
+          <ChevronDownIcon class="w-3 h-3 transition-transform duration-200" :class="moreOpen ? 'rotate-180' : ''" />
+        </button>
+      </div>
+
+      <template v-if="moreOpen || collapsed">
+        <NuxtLink
+          v-for="item in featureNav"
+          :key="item.to"
+          :to="item.to"
+          class="relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+          :class="
+            isActive(item.to)
+              ? 'bg-indigo-600/20 text-white'
+              : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+          "
+        >
+          <component
+            :is="item.icon"
+            class="w-5 h-5 flex-shrink-0 transition-colors duration-200"
+            :class="isActive(item.to) ? 'text-indigo-400' : 'text-slate-500'"
+          />
+          <span v-if="!collapsed">{{ item.label }}</span>
+        </NuxtLink>
+      </template>
+
+      <!-- Bottom nav -->
+      <div class="my-3 mx-2 border-t border-white/5" />
+      <NuxtLink
+        v-for="item in bottomNav"
+        :key="item.to"
+        :to="item.to"
+        class="relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+        :class="
+          isActive(item.to)
+            ? 'bg-indigo-600/20 text-white'
+            : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+        "
+      >
+        <component
+          :is="item.icon"
+          class="w-5 h-5 flex-shrink-0"
+          :class="isActive(item.to) ? 'text-indigo-400' : 'text-slate-500'"
+        />
+        <span v-if="!collapsed">{{ item.label }}</span>
       </NuxtLink>
     </nav>
 
@@ -113,21 +197,13 @@ const toggleCollapse = () => {
 
     <!-- User Profile -->
     <div class="border-t border-white/5 p-3">
-      <div
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800/40 transition-all duration-200"
-      >
+      <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800/40 transition-all duration-200">
         <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 ring-2 ring-indigo-500/20">
-          <span class="text-white text-xs font-semibold">
-            {{ userInitials }}
-          </span>
+          <span class="text-white text-xs font-semibold">{{ userInitials }}</span>
         </div>
         <div v-if="!collapsed" class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-white truncate">
-            {{ user?.name || 'User' }}
-          </p>
-          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            Admin
-          </span>
+          <p class="text-sm font-medium text-white truncate">{{ user?.name || 'User' }}</p>
+          <p class="text-[11px] text-slate-500 truncate">{{ user?.email || '' }}</p>
         </div>
         <button
           v-if="!collapsed"
