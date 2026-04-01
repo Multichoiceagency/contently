@@ -11,6 +11,7 @@ RUN npm install --legacy-peer-deps
 FROM deps AS build
 ARG NUXT_PUBLIC_API_BASE=https://api.contentrich.nl
 ENV NUXT_PUBLIC_API_BASE=${NUXT_PUBLIC_API_BASE}
+ENV NODE_OPTIONS=--max-old-space-size=2048
 COPY . .
 RUN npm run build
 
