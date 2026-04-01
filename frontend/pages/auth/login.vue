@@ -101,9 +101,9 @@ const handleLogin = async () => {
           />
           <span class="text-sm text-gray-600">Remember me</span>
         </label>
-        <a href="#" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+        <NuxtLink to="/auth/forgot-password" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
           Forgot password?
-        </a>
+        </NuxtLink>
       </div>
 
       <!-- Submit -->

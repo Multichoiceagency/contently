@@ -5,65 +5,130 @@ export function useAuth() {
   const router = useRouter()
   const config = useRuntimeConfig()
 
+  const apiBase = config.public.apiBase as string
+
   const login = async (email: string, password: string) => {
     try {
-      // Simulate API call - replace with real API
-      await new Promise(resolve => setTimeout(resolve, 800))
+      const res = await $fetch<any>(`${apiBase}/auth/login`, {
+        method: 'POST',
+        body: { email, password },
+      })
 
-      const mockUser = {
-        id: '1',
-        name: 'John Doe',
-        email,
-        avatar: undefined,
-        role: 'owner' as const,
-        createdAt: new Date().toISOString(),
-      }
-      const mockToken = 'mock-jwt-token-' + Date.now()
-
-      authStore.setAuth(mockUser, mockToken)
-      localStorage.setItem('flowgent_token', mockToken)
-      localStorage.setItem('flowgent_user', JSON.stringify(mockUser))
+      authStore.setAuth(res.user, res.accessToken)
+      localStorage.setItem('flowgent_token', res.accessToken)
+      localStorage.setItem('flowgent_refresh', res.refreshToken)
+      localStorage.setItem('flowgent_user', JSON.stringify(res.user))
 
       await router.push('/dashboard')
       return { success: true }
     } catch (error: any) {
-      return { success: false, error: error.message || 'Login failed' }
+      const data = error?.data || error?.response?._data
+      if (data?.requiresVerification) {
+        await router.push(`/auth/verify?email=${encodeURIComponent(data.email)}`)
+        return { success: true }
+      }
+      return { success: false, error: data?.message || 'Login failed' }
     }
   }
 
-  const register = async (name: string, email: string, password: string, workspaceName: string) => {
+  const register = async (name: string, email: string, password: string, _workspaceName?: string) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 800))
+      const res = await $fetch<any>(`${apiBase}/auth/register`, {
+        method: 'POST',
+        body: { email, password, name },
+      })
 
-      const mockUser = {
-        id: '1',
-        name,
-        email,
-        avatar: undefined,
-        role: 'owner' as const,
-        createdAt: new Date().toISOString(),
+      if (res.requiresVerification) {
+        await router.push(`/auth/verify?email=${encodeURIComponent(res.email)}`)
+        return { success: true }
       }
-      const mockToken = 'mock-jwt-token-' + Date.now()
 
-      authStore.setAuth(mockUser, mockToken)
-      localStorage.setItem('flowgent_token', mockToken)
-      localStorage.setItem('flowgent_user', JSON.stringify(mockUser))
+      return { success: true }
+    } catch (error: any) {
+      const data = error?.data || error?.response?._data
+      return { success: false, error: data?.message || 'Registration failed' }
+    }
+  }
+
+  const verifyEmail = async (email: string, code: string) => {
+    try {
+      const res = await $fetch<any>(`${apiBase}/auth/verify`, {
+        method: 'POST',
+        body: { email, code },
+      })
+
+      authStore.setAuth(res.user, res.accessToken)
+      localStorage.setItem('flowgent_token', res.accessToken)
+      localStorage.setItem('flowgent_refresh', res.refreshToken)
+      localStorage.setItem('flowgent_user', JSON.stringify(res.user))
 
       await router.push('/dashboard')
       return { success: true }
     } catch (error: any) {
-      return { success: false, error: error.message || 'Registration failed' }
+      const data = error?.data || error?.response?._data
+      return { success: false, error: data?.message || 'Verification failed' }
     }
   }
 
-  const logout = () => {
-    authStore.clearAuth()
-    localStorage.removeItem('flowgent_token')
-    localStorage.removeItem('flowgent_user')
-    router.push('/auth/login')
+  const resendCode = async (email: string) => {
+    try {
+      await $fetch(`${apiBase}/auth/resend-code`, {
+        method: 'POST',
+        body: { email },
+      })
+      return { success: true }
+    } catch (error: any) {
+      const data = error?.data || error?.response?._data
+      return { success: false, error: data?.message || 'Failed to resend code' }
+    }
   }
 
-  const restoreSession = () => {
+  const forgotPassword = async (email: string) => {
+    try {
+      await $fetch(`${apiBase}/auth/forgot-password`, {
+        method: 'POST',
+        body: { email },
+      })
+      return { success: true }
+    } catch (error: any) {
+      const data = error?.data || error?.response?._data
+      return { success: false, error: data?.message || 'Failed to send reset code' }
+    }
+  }
+
+  const resetPassword = async (email: string, code: string, password: string) => {
+    try {
+      await $fetch(`${apiBase}/auth/reset-password`, {
+        method: 'POST',
+        body: { email, code, password },
+      })
+      return { success: true }
+    } catch (error: any) {
+      const data = error?.data || error?.response?._data
+      return { success: false, error: data?.message || 'Password reset failed' }
+    }
+  }
+
+  const logout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('flowgent_refresh')
+      if (authStore.token) {
+        await $fetch(`${apiBase}/auth/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authStore.token}` },
+          body: { refreshToken },
+        }).catch(() => {})
+      }
+    } finally {
+      authStore.clearAuth()
+      localStorage.removeItem('flowgent_token')
+      localStorage.removeItem('flowgent_refresh')
+      localStorage.removeItem('flowgent_user')
+      router.push('/auth/login')
+    }
+  }
+
+  const restoreSession = async () => {
     if (import.meta.server) return
     const token = localStorage.getItem('flowgent_token')
     const userJson = localStorage.getItem('flowgent_user')
@@ -71,6 +136,34 @@ export function useAuth() {
       try {
         const user = JSON.parse(userJson)
         authStore.setAuth(user, token)
+
+        // Validate token with /auth/me
+        const me = await $fetch<any>(`${apiBase}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null)
+
+        if (me) {
+          authStore.setAuth(me, token)
+          localStorage.setItem('flowgent_user', JSON.stringify(me))
+        } else {
+          // Try refresh
+          const refreshToken = localStorage.getItem('flowgent_refresh')
+          if (refreshToken) {
+            try {
+              const res = await $fetch<any>(`${apiBase}/auth/refresh`, {
+                method: 'POST',
+                body: { refreshToken },
+              })
+              authStore.setAuth(user, res.accessToken)
+              localStorage.setItem('flowgent_token', res.accessToken)
+              localStorage.setItem('flowgent_refresh', res.refreshToken)
+            } catch {
+              logout()
+            }
+          } else {
+            logout()
+          }
+        }
       } catch {
         logout()
       }
@@ -80,6 +173,10 @@ export function useAuth() {
   return {
     login,
     register,
+    verifyEmail,
+    resendCode,
+    forgotPassword,
+    resetPassword,
     logout,
     restoreSession,
     user: computed(() => authStore.user),
