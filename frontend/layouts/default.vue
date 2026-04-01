@@ -28,9 +28,18 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
-onMounted(() => {
-  restoreSession()
+const { loadWorkspaces, needsOnboarding } = useWorkspace()
+
+onMounted(async () => {
+  await restoreSession()
+  await loadWorkspaces()
   window.addEventListener('keydown', handleKeydown)
+
+  // Redirect to onboarding if no workspaces and not already there
+  const currentRoute = useRoute()
+  if (needsOnboarding.value && currentRoute.path !== '/onboarding') {
+    useRouter().push('/onboarding')
+  }
 })
 
 onUnmounted(() => {

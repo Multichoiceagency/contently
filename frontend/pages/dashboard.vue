@@ -5,294 +5,229 @@ import {
   CheckCircleIcon,
   ChartBarIcon,
   SparklesIcon,
-  ArrowTrendingUpIcon,
   PlusIcon,
   CalendarDaysIcon,
+  ShareIcon,
+  UserGroupIcon,
+  ArrowRightIcon,
+  RocketLaunchIcon,
 } from '@heroicons/vue/24/outline'
-import { usePostsStore } from '~/stores/posts'
 
-const postsStore = usePostsStore()
 const router = useRouter()
 const { user } = useAuth()
-const showPostModal = ref(false)
+const { current, workspaces, loadWorkspaces } = useWorkspace()
 
 onMounted(() => {
-  postsStore.loadPosts()
+  loadWorkspaces()
 })
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return 'Goedemorgen'
+  if (hour < 17) return 'Goedemiddag'
+  return 'Goedenavond'
 })
 
 const firstName = computed(() => {
   return user.value?.name?.split(' ')[0] || 'there'
 })
 
-const stats = computed(() => [
-  {
-    title: 'Total Posts',
-    value: postsStore.posts.length,
-    change: 12,
-    icon: DocumentTextIcon,
-    gradient: 'bg-gradient-to-br from-purple-600 to-purple-700',
-  },
-  {
-    title: 'Scheduled',
-    value: postsStore.scheduledCount,
-    change: 5,
-    icon: ClockIcon,
-    gradient: 'bg-gradient-to-br from-amber-500 to-orange-600',
-  },
-  {
-    title: 'Published',
-    value: postsStore.publishedCount,
-    change: 18,
-    icon: CheckCircleIcon,
-    gradient: 'bg-gradient-to-br from-emerald-500 to-green-600',
-  },
-  {
-    title: 'Engagement Rate',
-    value: '4.2%',
-    change: -2,
-    icon: ChartBarIcon,
-    gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600',
-  },
-])
-
-// Chart data
-const engagementChartData = computed(() => {
-  const labels = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (29 - i))
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  })
-
-  return {
-    labels,
-    datasets: [
-      {
-        label: 'Engagement',
-        data: Array.from({ length: 30 }, () => Math.floor(Math.random() * 400 + 100)),
-        borderColor: '#6366f1',
-        backgroundColor: 'rgba(99, 102, 241, 0.08)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBorderWidth: 2,
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: '#6366f1',
-      },
-    ],
-  }
+const isEmpty = computed(() => {
+  return !current.value
 })
 
-const platformChartData = computed(() => ({
-  labels: ['LinkedIn', 'Facebook', 'Twitter/X', 'Instagram'],
-  datasets: [
-    {
-      label: 'Posts',
-      data: [
-        postsStore.posts.filter(p => p.platforms.includes('linkedin')).length,
-        postsStore.posts.filter(p => p.platforms.includes('facebook')).length,
-        postsStore.posts.filter(p => p.platforms.includes('twitter')).length,
-        postsStore.posts.filter(p => p.platforms.includes('instagram')).length,
-      ],
-      backgroundColor: ['#0077B5', '#1877F2', '#1DA1F2', '#E4405F'],
-      borderRadius: 8,
-      barThickness: 40,
-    },
-  ],
-}))
-
-const recentPosts = computed(() => {
-  return postsStore.posts
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8)
-})
-
-const aiSuggestions = [
-  'Your LinkedIn posts perform best on Tuesdays at 10 AM. Consider scheduling more content then.',
-  'Visual content gets 2.3x more engagement on Instagram. Try adding more images.',
-  'Your audience engages most with industry insights. Create more thought leadership content.',
+const quickActions = [
+  {
+    title: 'Create Post',
+    description: 'Write and schedule a new social media post',
+    icon: PlusIcon,
+    color: 'bg-indigo-600',
+    to: '/posts',
+  },
+  {
+    title: 'AI Generate',
+    description: 'Let AI create content for you',
+    icon: SparklesIcon,
+    color: 'bg-purple-600',
+    to: '/ai',
+  },
+  {
+    title: 'View Calendar',
+    description: 'See your content calendar',
+    icon: CalendarDaysIcon,
+    color: 'bg-emerald-600',
+    to: '/calendar',
+  },
+  {
+    title: 'Connect Account',
+    description: 'Link a social media account',
+    icon: ShareIcon,
+    color: 'bg-blue-600',
+    to: '/social',
+  },
 ]
-
-const handleCreatePost = (data: any) => {
-  const newPost = {
-    id: Date.now().toString(),
-    content: data.content,
-    platforms: data.platforms,
-    status: data.status,
-    scheduledAt: data.scheduledAt,
-    publishedAt: undefined,
-    mediaUrls: [],
-    engagement: { likes: 0, comments: 0, shares: 0, clicks: 0, impressions: 0 },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-  postsStore.addPost(newPost)
-}
 </script>
 
 <template>
-  <div>
-    <AppTopbar title="Dashboard" subtitle="Welcome back! Here's your social media overview." @action="showPostModal = true" />
-
-    <div class="p-6 space-y-6">
+  <div class="min-h-[calc(100vh-4rem)]">
+    <div class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
       <!-- Welcome Header -->
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">
-            {{ greeting }}, {{ firstName }} <span class="inline-block animate-wave origin-[70%_70%]">&#128075;</span>
+          <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">
+            {{ greeting }}, {{ firstName }}
           </h1>
-          <p class="text-sm text-gray-500 mt-1">Here's what's happening with your content</p>
+          <p class="text-gray-500 mt-1">
+            <template v-if="current">
+              Workspace: <span class="font-medium text-gray-700">{{ current.name }}</span>
+            </template>
+            <template v-else>
+              Get started by setting up your workspace
+            </template>
+          </p>
         </div>
 
-        <!-- Quick Actions -->
         <div class="flex items-center gap-3">
           <button
-            class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-all duration-200"
-            @click="showPostModal = true"
+            class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-all duration-200"
+            @click="router.push('/posts')"
           >
             <PlusIcon class="w-4 h-4" />
             New Post
           </button>
           <button
-            class="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 shadow-sm shadow-purple-600/20 transition-all duration-200"
+            class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 shadow-sm shadow-purple-600/20 transition-all duration-200"
             @click="router.push('/ai')"
           >
             <SparklesIcon class="w-4 h-4" />
             AI Generate
           </button>
+        </div>
+      </div>
+
+      <!-- Empty State / Getting Started -->
+      <template v-if="isEmpty">
+        <div class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl border border-indigo-100 p-8 lg:p-12 text-center">
+          <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <RocketLaunchIcon class="w-8 h-8 text-indigo-600" />
+          </div>
+          <h2 class="text-xl font-bold text-gray-900 mb-2">Welcome to Contentrich!</h2>
+          <p class="text-gray-600 max-w-lg mx-auto mb-8">
+            Your AI-powered social media management platform. Start by connecting your social accounts and creating your first post.
+          </p>
+          <div class="flex items-center justify-center gap-4">
+            <button
+              class="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all duration-200"
+              @click="router.push('/social')"
+            >
+              <ShareIcon class="w-4 h-4" />
+              Connect Account
+            </button>
+            <button
+              class="flex items-center gap-2 px-6 py-3 bg-white text-gray-700 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all duration-200"
+              @click="router.push('/posts')"
+            >
+              <PlusIcon class="w-4 h-4" />
+              Create First Post
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <!-- Stats Row -->
+      <template v-if="current">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+                <DocumentTextIcon class="w-5 h-5 text-purple-600" />
+              </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">0</p>
+            <p class="text-sm text-gray-500 mt-0.5">Total Posts</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                <ClockIcon class="w-5 h-5 text-amber-600" />
+              </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">0</p>
+            <p class="text-sm text-gray-500 mt-0.5">Scheduled</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+                <CheckCircleIcon class="w-5 h-5 text-emerald-600" />
+              </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">0</p>
+            <p class="text-sm text-gray-500 mt-0.5">Published</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                <UserGroupIcon class="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">{{ workspaces.length }}</p>
+            <p class="text-sm text-gray-500 mt-0.5">Workspaces</p>
+          </div>
+        </div>
+      </template>
+
+      <!-- Quick Actions Grid -->
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
-            class="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all duration-200"
-            @click="router.push('/calendar')"
+            v-for="action in quickActions"
+            :key="action.title"
+            class="group bg-white rounded-xl border border-gray-100 p-5 text-left hover:shadow-md hover:border-indigo-100 transition-all duration-200"
+            @click="router.push(action.to)"
           >
-            <CalendarDaysIcon class="w-4 h-4" />
-            View Calendar
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-110"
+              :class="action.color"
+            >
+              <component :is="action.icon" class="w-5 h-5 text-white" />
+            </div>
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">{{ action.title }}</h3>
+            <p class="text-xs text-gray-500 leading-relaxed">{{ action.description }}</p>
+            <div class="flex items-center gap-1 mt-3 text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span>Get started</span>
+              <ArrowRightIcon class="w-3 h-3" />
+            </div>
           </button>
         </div>
       </div>
 
-      <!-- Stats Row -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          v-for="stat in stats"
-          :key="stat.title"
-          :title="stat.title"
-          :value="stat.value"
-          :change="stat.change"
-          :icon="stat.icon"
-          :gradient="stat.gradient"
-        />
-      </div>
-
-      <!-- Charts Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2">
-          <AnalyticsChart
-            type="line"
-            :data="engagementChartData"
-            title="Engagement Over Time"
-            :height="300"
-          />
+      <!-- AI Insights Card -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 p-8 text-white">
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+          <div class="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
         </div>
-        <div>
-          <AnalyticsChart
-            type="bar"
-            :data="platformChartData"
-            title="Posts by Platform"
-            :height="300"
-          />
-        </div>
-      </div>
-
-      <!-- Bottom Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Recent Posts -->
-        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h3 class="text-sm font-semibold text-gray-900">Recent Posts</h3>
-            <NuxtLink to="/posts" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-              View All
-            </NuxtLink>
-          </div>
-          <div class="divide-y divide-gray-100">
-            <div
-              v-for="post in recentPosts"
-              :key="post.id"
-              class="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50/80 transition-all duration-200 cursor-pointer"
-              @click="router.push(`/posts/${post.id}`)"
-            >
-              <div class="flex items-center gap-1.5 flex-shrink-0">
-                <PlatformIcon
-                  v-for="platform in post.platforms"
-                  :key="platform"
-                  :platform="platform"
-                  size="xs"
-                />
-              </div>
-              <p class="text-sm text-gray-700 flex-1 truncate">{{ post.content }}</p>
-              <StatusBadge :status="post.status" />
-              <span class="text-xs text-gray-400 flex-shrink-0 w-20 text-right">
-                {{ new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}
-              </span>
+        <div class="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div>
+            <div class="flex items-center gap-2 mb-3">
+              <SparklesIcon class="w-5 h-5" />
+              <span class="text-sm font-semibold text-white/90">AI Content Generator</span>
             </div>
+            <h3 class="text-xl font-bold mb-2">Create engaging content with AI</h3>
+            <p class="text-white/70 text-sm max-w-md">
+              Generate captions, hashtags, and full posts tailored to your audience. Let AI handle the creative work while you focus on strategy.
+            </p>
           </div>
-        </div>
-
-        <!-- AI Insights -->
-        <div class="relative overflow-hidden rounded-xl p-[2px] bg-gradient-to-br from-indigo-500 to-purple-500">
-          <div class="bg-white rounded-[10px] p-6 h-full">
-            <div class="flex items-center gap-2 mb-4">
-              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                <SparklesIcon class="w-4 h-4 text-white" />
-              </div>
-              <h3 class="text-sm font-semibold text-gray-900">AI Insights</h3>
-            </div>
-            <div class="space-y-3">
-              <div
-                v-for="(suggestion, index) in aiSuggestions"
-                :key="index"
-                class="bg-gray-50 rounded-lg p-3 border border-gray-100"
-              >
-                <div class="flex items-start gap-2.5">
-                  <ArrowTrendingUpIcon class="w-4 h-4 flex-shrink-0 mt-0.5 text-indigo-500" />
-                  <p class="text-sm text-gray-600 leading-relaxed">{{ suggestion }}</p>
-                </div>
-              </div>
-            </div>
-            <button
-              class="mt-4 w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm shadow-indigo-600/20"
-              @click="router.push('/ai')"
-            >
-              Generate Content
-            </button>
-          </div>
+          <button
+            class="flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 rounded-xl text-sm font-bold hover:bg-white/90 transition-all duration-200 shadow-lg self-start"
+            @click="router.push('/ai')"
+          >
+            <SparklesIcon class="w-4 h-4" />
+            Try AI Generator
+          </button>
         </div>
       </div>
     </div>
-
-    <PostModal v-model="showPostModal" @save="handleCreatePost" />
   </div>
 </template>
-
-<style scoped>
-@keyframes wave {
-  0% { transform: rotate(0deg); }
-  10% { transform: rotate(14deg); }
-  20% { transform: rotate(-8deg); }
-  30% { transform: rotate(14deg); }
-  40% { transform: rotate(-4deg); }
-  50% { transform: rotate(10deg); }
-  60% { transform: rotate(0deg); }
-  100% { transform: rotate(0deg); }
-}
-.animate-wave {
-  animation: wave 2.5s infinite;
-  display: inline-block;
-}
-</style>
