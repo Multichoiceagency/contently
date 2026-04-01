@@ -20,18 +20,18 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'Flowgent — AI Social Media Manager | contentrich.nl',
+      title: 'ContentRich — AI Social Media Management | contentrich.nl',
       meta: [
-        { name: 'description', content: 'AI-powered social media management platform — Plan, create en publiceer content met AI' },
-        { name: 'og:title', content: 'Flowgent — AI Social Media Manager' },
-        { name: 'og:description', content: 'Plan, creëer en publiceer social media content met AI' },
+        { name: 'description', content: 'AI-powered social media management platform — Plan, create and publish content with AI. For agencies, brands, and marketers.' },
+        { name: 'og:title', content: 'ContentRich — AI Social Media Management' },
+        { name: 'og:description', content: 'The easiest way to manage and grow your social channels. Plan, create and publish content with AI.' },
         { name: 'og:type', content: 'website' },
         { name: 'og:url', content: 'https://contentrich.nl' },
         { name: 'twitter:card', content: 'summary_large_image' },
       ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap' },
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap' },
       ],
     },
   },
