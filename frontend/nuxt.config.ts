@@ -12,6 +12,8 @@ export default defineNuxtConfig({
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:4000',
       googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || '',
       stripePublishableKey: process.env.NUXT_PUBLIC_STRIPE_KEY || '',
+      mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN || 'contentrich.nl',
+      dashboardDomain: process.env.NUXT_PUBLIC_DASHBOARD_DOMAIN || 'dashboard.contentrich.nl',
     },
   },
   colorMode: {

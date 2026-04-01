@@ -285,18 +285,18 @@
           >
             Book a demo
           </NuxtLink>
-          <NuxtLink
-            to="/auth/login"
+          <a
+            :href="dashboardUrl + '/auth/login'"
             class="text-cs-body font-medium text-sm hover:text-cs-blue transition-colors"
           >
             Sign in
-          </NuxtLink>
-          <NuxtLink
-            to="/auth/register"
+          </a>
+          <a
+            :href="dashboardUrl + '/auth/register'"
             class="bg-cs-blue text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-cs-blue-dark transition-colors"
           >
             Start free trial
-          </NuxtLink>
+          </a>
         </div>
 
         <!-- Mobile Menu Button -->
@@ -410,20 +410,20 @@
             </NuxtLink>
 
             <!-- Sign In -->
-            <NuxtLink
-              to="/auth/login"
+            <a
+              :href="dashboardUrl + '/auth/login'"
               class="block px-3 py-2 rounded-md text-cs-body font-medium text-sm hover:bg-gray-50"
             >
               Sign in
-            </NuxtLink>
+            </a>
 
             <!-- Start Free Trial Button -->
-            <NuxtLink
-              to="/auth/register"
+            <a
+              :href="dashboardUrl + '/auth/register'"
               class="block mt-2 bg-cs-blue text-white rounded-full px-6 py-2.5 text-sm font-medium text-center hover:bg-cs-blue-dark transition-colors"
             >
               Start free trial
-            </NuxtLink>
+            </a>
           </div>
         </div>
       </div>
@@ -432,7 +432,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import {
   ChevronDownIcon,
   CalendarIcon,
@@ -450,6 +450,18 @@ import {
   Bars3Icon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
+
+const config = useRuntimeConfig()
+const dashboardUrl = computed(() => {
+  if (import.meta.client) {
+    const hostname = window.location.hostname
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return ''  // Same origin in dev
+    }
+  }
+  const domain = config.public.dashboardDomain || 'dashboard.contentrich.nl'
+  return `https://${domain}`
+})
 
 const mobileMenuOpen = ref(false)
 const mobileProductOpen = ref(false)

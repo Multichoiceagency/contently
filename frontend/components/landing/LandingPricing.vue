@@ -49,9 +49,9 @@
             </li>
           </ul>
 
-          <NuxtLink to="/auth/register" class="block w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors text-center">
+          <a :href="dashboardUrl + '/auth/register'" class="block w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors text-center">
             Get Started
-          </NuxtLink>
+          </a>
         </div>
 
         <!-- Professional Card (Most Popular) -->
@@ -96,9 +96,9 @@
             </li>
           </ul>
 
-          <NuxtLink to="/auth/register" class="block w-full py-3 rounded-full bg-cs-blue text-white font-medium hover:bg-blue-600 transition-colors text-center">
+          <a :href="dashboardUrl + '/auth/register'" class="block w-full py-3 rounded-full bg-cs-blue text-white font-medium hover:bg-blue-600 transition-colors text-center">
             Start Free Trial
-          </NuxtLink>
+          </a>
         </div>
 
         <!-- Agency Card -->
@@ -136,9 +136,9 @@
             </li>
           </ul>
 
-          <NuxtLink to="/auth/register" class="block w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors text-center">
+          <a :href="dashboardUrl + '/auth/register'" class="block w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors text-center">
             Get Started
-          </NuxtLink>
+          </a>
         </div>
       </div>
     </div>
@@ -146,7 +146,20 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { CheckIcon } from '@heroicons/vue/24/solid'
+
+const config = useRuntimeConfig()
+const dashboardUrl = computed(() => {
+  if (import.meta.client) {
+    const hostname = window.location.hostname
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return ''
+    }
+  }
+  const domain = config.public.dashboardDomain || 'dashboard.contentrich.nl'
+  return `https://${domain}`
+})
 </script>
 
 <style scoped>

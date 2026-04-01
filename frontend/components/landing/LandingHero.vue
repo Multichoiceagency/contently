@@ -27,12 +27,12 @@
 
       <!-- CTA Buttons -->
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 animate-fade-in">
-        <NuxtLink
-          to="/auth/register"
+        <a
+          :href="dashboardUrl + '/auth/register'"
           class="inline-flex items-center justify-center px-7 py-4 rounded-full bg-cs-blue text-white text-sm font-medium shadow-lg shadow-blue-500/20 hover:bg-cs-blue-dark transition-all duration-300 transform hover:scale-105"
         >
           Get started for free
-        </NuxtLink>
+        </a>
         <NuxtLink
           to="/demo"
           class="inline-flex items-center justify-center px-10 py-4 rounded-full bg-white text-cs-body text-sm font-medium border border-gray-200 hover:border-gray-300 transition-all duration-300 transform hover:scale-105"
@@ -174,8 +174,19 @@
 </template>
 
 <script setup lang="ts">
-// This component uses NuxtLink for internal navigation
-// The animations are handled via Tailwind CSS classes
+import { computed } from 'vue'
+
+const config = useRuntimeConfig()
+const dashboardUrl = computed(() => {
+  if (import.meta.client) {
+    const hostname = window.location.hostname
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return ''
+    }
+  }
+  const domain = config.public.dashboardDomain || 'dashboard.contentrich.nl'
+  return `https://${domain}`
+})
 </script>
 
 <style scoped>

@@ -6,6 +6,21 @@ export function useAuth() {
   const config = useRuntimeConfig()
 
   const apiBase = config.public.apiBase as string
+  const dashboardDomain = config.public.dashboardDomain as string || 'dashboard.contentrich.nl'
+
+  const goToDashboard = () => {
+    if (import.meta.client) {
+      const hostname = window.location.hostname
+      const isDashboard = hostname.startsWith('dashboard.')
+      if (isDashboard) {
+        router.push('/dashboard')
+      } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        router.push('/dashboard')
+      } else {
+        window.location.href = `https://${dashboardDomain}/dashboard`
+      }
+    }
+  }
 
   const login = async (email: string, password: string) => {
     try {
@@ -19,7 +34,7 @@ export function useAuth() {
       localStorage.setItem('flowgent_refresh', res.refreshToken)
       localStorage.setItem('flowgent_user', JSON.stringify(res.user))
 
-      await router.push('/dashboard')
+      goToDashboard()
       return { success: true }
     } catch (error: any) {
       const data = error?.data || error?.response?._data
@@ -62,7 +77,7 @@ export function useAuth() {
       localStorage.setItem('flowgent_refresh', res.refreshToken)
       localStorage.setItem('flowgent_user', JSON.stringify(res.user))
 
-      await router.push('/dashboard')
+      goToDashboard()
       return { success: true }
     } catch (error: any) {
       const data = error?.data || error?.response?._data
@@ -121,7 +136,7 @@ export function useAuth() {
       localStorage.setItem('flowgent_refresh', res.refreshToken)
       localStorage.setItem('flowgent_user', JSON.stringify(res.user))
 
-      await router.push('/dashboard')
+      goToDashboard()
       return { success: true }
     } catch (error: any) {
       const data = error?.data || error?.response?._data
@@ -144,7 +159,15 @@ export function useAuth() {
       localStorage.removeItem('flowgent_token')
       localStorage.removeItem('flowgent_refresh')
       localStorage.removeItem('flowgent_user')
-      router.push('/auth/login')
+      if (import.meta.client) {
+        const hostname = window.location.hostname
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          router.push('/auth/login')
+        } else {
+          const mainDomain = config.public.mainDomain as string || 'contentrich.nl'
+          window.location.href = `https://${mainDomain}/auth/login`
+        }
+      }
     }
   }
 
