@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".output",
-  "regions": ["ams1"],
+  "regions": ["cdg1"],
   "headers": [
     {
       "source": "/(.*)",
