@@ -1,12 +1,13 @@
-# Coolify Deployment Configuration — contentrich.nl
+# Coolify Deployment Configuration — Backend only
 # Server: 135.181.47.19 (Hetzner)
+# Frontend is deployed on Vercel (contentrich.nl + dashboard.contentrich.nl)
 #
 # Setup in Coolify (https://135.181.47.19:8000):
-# 1. Create new project "Flowgent"
+# 1. Create new project "ContentRich Backend"
 # 2. New Resource → Docker Compose → GitHub repo: Multichoiceagency/contently
 # 3. Set compose file to: coolify.yml
 # 4. Set environment variables (see below)
-# 5. Domain: contentrich.nl (frontend) + api.contentrich.nl (backend)
+# 5. Domain: api.contentrich.nl (backend)
 # 6. SSL: automatic via Coolify/Traefik
 #
 # Required Environment Variables (set in Coolify dashboard):
@@ -16,9 +17,6 @@
 #   JWT_SECRET=<random-64-chars>
 #   JWT_REFRESH_SECRET=<random-64-chars>
 #   OPENAI_API_KEY=sk-...
-#   NUXT_PUBLIC_API_BASE=https://api.contentrich.nl
-#   NUXT_PUBLIC_MAIN_DOMAIN=contentrich.nl
-#   NUXT_PUBLIC_DASHBOARD_DOMAIN=dashboard.contentrich.nl
 #   COOLIFY_DOMAIN=contentrich.nl
 #   CORS_ORIGIN=https://contentrich.nl,https://dashboard.contentrich.nl
 
@@ -84,7 +82,6 @@ services:
     networks:
       - flowgent
     labels:
-      # API via api.contentrich.nl (subdomain)
       - "traefik.enable=true"
       - "traefik.http.routers.flowgent-api.rule=Host(`api.${COOLIFY_DOMAIN:-contentrich.nl}`)"
       - "traefik.http.routers.flowgent-api.entrypoints=https"
@@ -96,51 +93,6 @@ services:
       - "traefik.http.middlewares.api-headers.headers.accesscontrolallowheaders=Content-Type,Authorization,x-workspace-id"
       - "traefik.http.middlewares.api-headers.headers.accesscontrolallowcredentials=true"
       - "traefik.http.services.flowgent-api.loadbalancer.server.port=4000"
-      # API via contentrich.nl/api (path-based, backwards compat)
-      - "traefik.http.routers.flowgent-api-path.rule=Host(`${COOLIFY_DOMAIN:-contentrich.nl}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.flowgent-api-path.entrypoints=https"
-      - "traefik.http.routers.flowgent-api-path.tls=true"
-      - "traefik.http.routers.flowgent-api-path.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.flowgent-api-path.middlewares=strip-api-prefix,api-headers"
-      - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NUXT_PUBLIC_API_BASE: https://api.${COOLIFY_DOMAIN:-contentrich.nl}
-    restart: unless-stopped
-    environment:
-      NUXT_PUBLIC_API_BASE: https://api.${COOLIFY_DOMAIN:-contentrich.nl}
-      NUXT_PUBLIC_MAIN_DOMAIN: ${COOLIFY_DOMAIN:-contentrich.nl}
-      NUXT_PUBLIC_DASHBOARD_DOMAIN: dashboard.${COOLIFY_DOMAIN:-contentrich.nl}
-    depends_on:
-      - backend
-    networks:
-      - flowgent
-    labels:
-      - "traefik.enable=true"
-      # Main domain: contentrich.nl
-      - "traefik.http.routers.flowgent-frontend.rule=Host(`${COOLIFY_DOMAIN:-contentrich.nl}`)"
-      - "traefik.http.routers.flowgent-frontend.entrypoints=https"
-      - "traefik.http.routers.flowgent-frontend.tls=true"
-      - "traefik.http.routers.flowgent-frontend.tls.certresolver=letsencrypt"
-      # Dashboard subdomain: dashboard.contentrich.nl
-      - "traefik.http.routers.flowgent-dashboard.rule=Host(`dashboard.${COOLIFY_DOMAIN:-contentrich.nl}`)"
-      - "traefik.http.routers.flowgent-dashboard.entrypoints=https"
-      - "traefik.http.routers.flowgent-dashboard.tls=true"
-      - "traefik.http.routers.flowgent-dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.flowgent-dashboard.service=flowgent-frontend"
-      # WWW redirect
-      - "traefik.http.routers.flowgent-www.rule=Host(`www.${COOLIFY_DOMAIN:-contentrich.nl}`)"
-      - "traefik.http.routers.flowgent-www.entrypoints=https"
-      - "traefik.http.routers.flowgent-www.tls=true"
-      - "traefik.http.routers.flowgent-www.middlewares=www-redirect"
-      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.(.*)"
-      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
-      - "traefik.http.middlewares.www-redirect.redirectregex.permanent=true"
-      - "traefik.http.services.flowgent-frontend.loadbalancer.server.port=3000"
 
 networks:
   flowgent:

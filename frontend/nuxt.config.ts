@@ -9,7 +9,7 @@ export default defineNuxtConfig({
   ],
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:4000',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://api.contentrich.nl',
       googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || '',
       stripePublishableKey: process.env.NUXT_PUBLIC_STRIPE_KEY || '',
       mainDomain: process.env.NUXT_PUBLIC_MAIN_DOMAIN || 'contentrich.nl',
