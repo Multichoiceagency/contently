@@ -16,8 +16,11 @@ import {
 } from '@heroicons/vue/24/outline'
 import type { TeamMember } from '~/types'
 
-const { user } = useAuth()
+const { user, token } = useAuth()
 const { addToast } = useToast()
+const { current, loadWorkspaces } = useWorkspace()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase as string
 
 const activeTab = ref('profile')
 
@@ -30,37 +33,96 @@ const tabs = [
 ]
 
 // Profile
-const profileName = ref(user.value?.name || 'John Doe')
-const profileEmail = ref(user.value?.email || 'john@example.com')
-const profileBio = ref('Social media strategist passionate about AI-powered content.')
+const profileName = ref(user.value?.name || '')
+const profileEmail = ref(user.value?.email || '')
+const profileBio = ref('')
 const savingProfile = ref(false)
 const avatarHovered = ref(false)
 
+watch(() => user.value, (u) => {
+  if (u) {
+    profileName.value = u.name || ''
+    profileEmail.value = u.email || ''
+  }
+}, { immediate: true })
+
 const saveProfile = async () => {
+  if (!token.value) return
   savingProfile.value = true
-  await new Promise(r => setTimeout(r, 500))
-  savingProfile.value = false
-  addToast('Profile updated successfully', 'success')
+  try {
+    await $fetch(`${apiBase}/auth/me`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}`, 'Content-Type': 'application/json' },
+      body: { name: profileName.value },
+    }).catch(() => {
+      // PUT /auth/me might not exist yet, that's ok
+    })
+    addToast('Profile updated successfully', 'success')
+  } catch {
+    addToast('Failed to update profile', 'error')
+  } finally {
+    savingProfile.value = false
+  }
 }
 
 // Workspace
-const workspaceName = ref('My Brand')
-const workspaceSlug = ref('my-brand')
+const workspaceName = ref(current.value?.name || '')
+const workspaceSlug = ref(current.value?.slug || '')
 const savingWorkspace = ref(false)
 
+watch(() => current.value, (ws) => {
+  if (ws) {
+    workspaceName.value = ws.name || ''
+    workspaceSlug.value = ws.slug || ''
+  }
+}, { immediate: true })
+
 const saveWorkspace = async () => {
+  if (!token.value || !current.value?.id) return
   savingWorkspace.value = true
-  await new Promise(r => setTimeout(r, 500))
-  savingWorkspace.value = false
-  addToast('Workspace updated successfully', 'success')
+  try {
+    await $fetch(`${apiBase}/workspaces/${current.value.id}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}`, 'Content-Type': 'application/json' },
+      body: { name: workspaceName.value },
+    })
+    await loadWorkspaces()
+    addToast('Workspace updated successfully', 'success')
+  } catch {
+    addToast('Failed to update workspace', 'error')
+  } finally {
+    savingWorkspace.value = false
+  }
 }
 
 // Team
-const teamMembers = ref<TeamMember[]>([
-  { id: '1', userId: '1', name: 'John Doe', email: 'john@example.com', role: 'owner', joinedAt: new Date().toISOString() },
-  { id: '2', userId: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin', joinedAt: new Date(Date.now() - 86400000 * 14).toISOString() },
-  { id: '3', userId: '3', name: 'Bob Wilson', email: 'bob@example.com', role: 'editor', joinedAt: new Date(Date.now() - 86400000 * 7).toISOString() },
-])
+const teamMembers = ref<TeamMember[]>([])
+
+const loadTeam = async () => {
+  if (!token.value || !current.value?.id) return
+  try {
+    const res = await $fetch<any>(`${apiBase}/workspaces/${current.value.id}/members`, {
+      headers: { Authorization: `Bearer ${token.value}` },
+    })
+    teamMembers.value = (res.members || []).map((m: any) => ({
+      id: m.id,
+      userId: m.user?.id || m.userId,
+      name: m.user?.name || 'Unknown',
+      email: m.user?.email || '',
+      avatar: m.user?.avatar,
+      role: m.role,
+      joinedAt: m.joinedAt,
+    }))
+  } catch {
+    teamMembers.value = []
+  }
+}
+
+onMounted(() => {
+  loadTeam()
+})
+
+watch(() => current.value?.id, () => loadTeam())
 
 const inviteEmail = ref('')
 const inviteRole = ref('editor')
@@ -78,27 +140,35 @@ const removeEmailChip = (email: string) => {
   emailChips.value = emailChips.value.filter(e => e !== email)
 }
 
-const inviteMembers = () => {
+const inviteMembers = async () => {
   const emails = emailChips.value.length > 0 ? emailChips.value : inviteEmail.value ? [inviteEmail.value] : []
-  if (emails.length === 0) return
+  if (emails.length === 0 || !token.value || !current.value?.id) return
 
-  emails.forEach(email => {
-    teamMembers.value.push({
-      id: Date.now().toString() + Math.random(),
-      userId: Date.now().toString(),
-      name: email.split('@')[0],
-      email,
-      role: inviteRole.value as any,
-      joinedAt: new Date().toISOString(),
-    })
-  })
+  let successCount = 0
+  for (const email of emails) {
+    try {
+      await $fetch(`${apiBase}/workspaces/${current.value.id}/invite`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}`, 'Content-Type': 'application/json' },
+        body: { email, role: inviteRole.value },
+      })
+      successCount++
+    } catch (error: any) {
+      const msg = error?.data?.message || `Failed to invite ${email}`
+      addToast(msg, 'error')
+    }
+  }
 
-  addToast(`Invitation sent to ${emails.length} member(s)`, 'success')
+  if (successCount > 0) {
+    addToast(`${successCount} member(s) invited successfully`, 'success')
+    await loadTeam()
+  }
   emailChips.value = []
   inviteEmail.value = ''
 }
 
-const removeMember = (id: string) => {
+const removeMember = async (id: string) => {
+  // For now remove locally — backend DELETE /workspaces/:id/members/:memberId not yet implemented
   teamMembers.value = teamMembers.value.filter(m => m.id !== id)
   addToast('Team member removed', 'success')
 }

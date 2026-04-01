@@ -11,6 +11,10 @@ import type { Platform, AiTone, AiContentType, AiGeneration } from '~/types'
 
 const router = useRouter()
 const { addToast } = useToast()
+const { token } = useAuth()
+const { current } = useWorkspace()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase as string
 
 const loading = ref(false)
 const results = ref<string[]>([])
@@ -47,53 +51,32 @@ const contentTypes: { id: AiContentType; label: string }[] = [
   { id: 'ideas', label: 'Content Ideas' },
 ]
 
-const history = ref<AiGeneration[]>([
-  {
-    id: '1',
-    topic: 'Product Launch',
-    platform: 'linkedin',
-    tone: 'professional',
-    contentType: 'full-post',
-    result: 'Excited to announce our latest innovation...',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: '2',
-    topic: 'Team Culture',
-    platform: 'instagram',
-    tone: 'casual',
-    contentType: 'caption',
-    result: 'Behind the scenes at our office...',
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: '3',
-    topic: 'Industry Trends',
-    platform: 'twitter',
-    tone: 'professional',
-    contentType: 'ideas',
-    result: '5 trends shaping social media in 2026...',
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-  },
-  {
-    id: '4',
-    topic: 'Customer Success Story',
-    platform: 'facebook',
-    tone: 'inspiring',
-    contentType: 'full-post',
-    result: 'Meet Sarah, who grew her business 3x...',
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-  },
-  {
-    id: '5',
-    topic: 'Holiday Campaign',
-    platform: 'instagram',
-    tone: 'fun',
-    contentType: 'caption',
-    result: 'Tis the season for amazing deals...',
-    createdAt: new Date(Date.now() - 432000000).toISOString(),
-  },
-])
+const history = ref<AiGeneration[]>([])
+
+const loadHistory = async () => {
+  if (!token.value || !current.value?.id) return
+  try {
+    const res = await $fetch<any>(`${apiBase}/ai/history`, {
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+        'x-workspace-id': current.value.id,
+      },
+    })
+    history.value = (res.generations || []).map((g: any) => ({
+      id: g.id,
+      topic: g.prompt,
+      platform: 'linkedin' as Platform,
+      tone: 'professional' as AiTone,
+      contentType: g.type as AiContentType,
+      result: g.result,
+      createdAt: g.createdAt,
+    }))
+  } catch {
+    history.value = []
+  }
+}
+
+onMounted(() => loadHistory())
 
 const mockGenerations: Record<string, string[]> = {
   'full-post': [
@@ -147,47 +130,56 @@ const groupedHistory = computed(() => {
 const creditPercent = computed(() => Math.round((creditsUsed.value / creditsTotal.value) * 100))
 
 const handleGenerate = async () => {
-  if (!topic.value.trim()) return
+  if (!topic.value.trim() || !token.value || !current.value?.id) return
   loading.value = true
   results.value = []
   lastParams.value = { platform: selectedPlatform.value, tone: selectedTone.value }
 
-  await new Promise(r => setTimeout(r, 2200))
+  try {
+    const res = await $fetch<any>(`${apiBase}/ai/generate`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+        'Content-Type': 'application/json',
+        'x-workspace-id': current.value.id,
+      },
+      body: {
+        type: selectedContentType.value,
+        topic: topic.value,
+        platform: selectedPlatform.value,
+        tone: selectedTone.value,
+      },
+    })
 
-  const typeResults = mockGenerations[selectedContentType.value] || mockGenerations['full-post']
-  results.value = typeResults
+    results.value = [res.result || res.content || '']
+    creditsUsed.value = Math.min(creditsUsed.value + (res.tokens || 1), creditsTotal.value)
 
-  creditsUsed.value = Math.min(creditsUsed.value + 3, creditsTotal.value)
-
-  history.value.unshift({
-    id: Date.now().toString(),
-    topic: topic.value,
-    platform: selectedPlatform.value,
-    tone: selectedTone.value,
-    contentType: selectedContentType.value,
-    result: typeResults[0],
-    createdAt: new Date().toISOString(),
-  })
-
-  loading.value = false
+    history.value.unshift({
+      id: Date.now().toString(),
+      topic: topic.value,
+      platform: selectedPlatform.value,
+      tone: selectedTone.value,
+      contentType: selectedContentType.value,
+      result: results.value[0],
+      createdAt: new Date().toISOString(),
+    })
+  } catch (error: any) {
+    const msg = error?.data?.message || 'AI generation failed. Check your OpenAI API key.'
+    addToast(msg, 'error')
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleRegenerate = async () => {
-  if (!topic.value.trim()) return
-  loading.value = true
-  results.value = []
-
-  await new Promise(r => setTimeout(r, 1800))
-
-  const typeResults = mockGenerations[selectedContentType.value] || mockGenerations['full-post']
-  // Shuffle to simulate regeneration
-  results.value = [...typeResults].sort(() => Math.random() - 0.5)
-  creditsUsed.value = Math.min(creditsUsed.value + 2, creditsTotal.value)
-  loading.value = false
+  await handleGenerate()
 }
 
 const handleUseInPost = (content: string) => {
-  addToast('Content copied! Create a new post to use it.', 'success')
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(content)
+  }
+  addToast('Content copied to clipboard! Create a new post to use it.', 'success')
 }
 
 // Thinking dots animation

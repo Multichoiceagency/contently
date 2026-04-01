@@ -15,63 +15,47 @@ import {
 import type { SocialAccount, Platform } from '~/types'
 
 const { addToast } = useToast()
+const { token } = useAuth()
+const { current } = useWorkspace()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase as string
 
 // Reconnect flow state
 const reconnectingId = ref<string | null>(null)
-const reconnectStep = ref(0) // 0=not started, 1=authorizing, 2=verifying, 3=syncing, 4=done
+const reconnectStep = ref(0)
 
 const accounts = ref<(SocialAccount & {
   followers?: string
   profileImage?: string
   lastActive?: string
   expiresAt?: string
-})[]>([
-  {
-    id: '1',
-    platform: 'linkedin',
-    accountName: 'Flowgent HQ',
-    accountId: 'flowgent-hq',
-    status: 'connected',
-    lastSyncedAt: new Date(Date.now() - 3600000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-    followers: '12.4K',
-    lastActive: '2 hours ago',
-  },
-  {
-    id: '2',
-    platform: 'facebook',
-    accountName: 'Flowgent',
-    accountId: 'flowgent',
-    status: 'connected',
-    lastSyncedAt: new Date(Date.now() - 7200000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
-    followers: '8.7K',
-    lastActive: '5 hours ago',
-    expiresAt: new Date(Date.now() + 86400000 * 3).toISOString(), // Expires in 3 days
-  },
-  {
-    id: '3',
-    platform: 'twitter',
-    accountName: '@flowgent',
-    accountId: 'flowgent',
-    status: 'error',
-    lastSyncedAt: new Date(Date.now() - 86400000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 20).toISOString(),
-    followers: '5.2K',
-    lastActive: '1 day ago',
-  },
-  {
-    id: '4',
-    platform: 'instagram',
-    accountName: '@flowgent.io',
-    accountId: 'flowgent.io',
-    status: 'connected',
-    lastSyncedAt: new Date(Date.now() - 1800000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 15).toISOString(),
-    followers: '15.8K',
-    lastActive: '30 min ago',
-  },
-])
+})[]>([])
+
+const loadAccounts = async () => {
+  if (!token.value || !current.value?.id) return
+  try {
+    const res = await $fetch<any>(`${apiBase}/social/accounts`, {
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+        'x-workspace-id': current.value.id,
+      },
+    })
+    accounts.value = (res.accounts || []).map((a: any) => ({
+      id: a.id,
+      platform: a.platform,
+      accountName: a.accountName,
+      accountId: a.id,
+      status: 'connected' as const,
+      lastSyncedAt: a.updatedAt,
+      createdAt: a.createdAt,
+    }))
+  } catch {
+    accounts.value = []
+  }
+}
+
+onMounted(() => loadAccounts())
+watch(() => current.value?.id, () => loadAccounts())
 
 const availablePlatforms: { id: Platform; label: string; description: string; color: string; bgColor: string; hoverBg: string }[] = [
   { id: 'linkedin', label: 'LinkedIn', description: 'Connect your company page or profile', color: 'text-white', bgColor: 'bg-[#0077B5]', hoverBg: 'hover:bg-[#006297]' },

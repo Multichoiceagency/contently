@@ -24,11 +24,11 @@ const isTyping = ref(false)
 const showSuggestions = ref(true)
 
 const platformTabs = [
-  { id: 'all', label: 'All', count: 5 },
-  { id: 'linkedin', label: 'LinkedIn', count: 2 },
-  { id: 'facebook', label: 'Facebook', count: 1 },
-  { id: 'twitter', label: 'Twitter/X', count: 1 },
-  { id: 'instagram', label: 'Instagram', count: 1 },
+  { id: 'all', label: 'All', count: 0 },
+  { id: 'linkedin', label: 'LinkedIn', count: 0 },
+  { id: 'facebook', label: 'Facebook', count: 0 },
+  { id: 'twitter', label: 'Twitter/X', count: 0 },
+  { id: 'instagram', label: 'Instagram', count: 0 },
 ]
 
 interface Message {
@@ -52,73 +52,7 @@ interface Conversation {
   messages: Message[]
 }
 
-const conversations = ref<Conversation[]>([
-  {
-    id: '1',
-    name: 'Sarah Johnson',
-    platform: 'linkedin',
-    lastMessage: 'Thanks for sharing that article! Really insightful.',
-    time: '2m ago',
-    unread: true,
-    online: true,
-    messages: [
-      { id: '1', sender: 'Sarah Johnson', avatar: 'SJ', content: 'Hi there! I saw your latest post about AI in marketing. Really great insights!', time: '10:30 AM', isMe: false },
-      { id: '2', sender: 'You', avatar: 'JD', content: 'Thank you, Sarah! We have been doing a lot of research on how AI can transform social media strategies.', time: '10:32 AM', isMe: true, status: 'read' },
-      { id: '3', sender: 'Sarah Johnson', avatar: 'SJ', content: 'Would love to collaborate on a piece about this topic. Are you open to that?', time: '10:35 AM', isMe: false },
-      { id: '4', sender: 'You', avatar: 'JD', content: 'Absolutely! Let us set up a time to discuss. How does next Tuesday work?', time: '10:38 AM', isMe: true, status: 'read' },
-      { id: '5', sender: 'Sarah Johnson', avatar: 'SJ', content: 'Thanks for sharing that article! Really insightful.', time: '10:40 AM', isMe: false },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Tech Community',
-    platform: 'facebook',
-    lastMessage: 'Great post! Can you share more details about the launch?',
-    time: '15m ago',
-    unread: true,
-    online: false,
-    messages: [
-      { id: '1', sender: 'Mike Chen', avatar: 'MC', content: 'Great post! Can you share more details about the launch?', time: '10:15 AM', isMe: false },
-    ],
-  },
-  {
-    id: '3',
-    name: '@designfan',
-    platform: 'twitter',
-    lastMessage: 'Love the new branding! Who designed it?',
-    time: '1h ago',
-    unread: false,
-    online: true,
-    messages: [
-      { id: '1', sender: '@designfan', avatar: 'DF', content: 'Love the new branding! Who designed it?', time: '9:30 AM', isMe: false },
-      { id: '2', sender: 'You', avatar: 'JD', content: 'Thank you! Our in-house design team worked on the rebrand. Glad you like it!', time: '9:45 AM', isMe: true, status: 'delivered' },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Emma Williams',
-    platform: 'instagram',
-    lastMessage: 'The behind-the-scenes content is amazing!',
-    time: '3h ago',
-    unread: false,
-    online: false,
-    messages: [
-      { id: '1', sender: 'Emma Williams', avatar: 'EW', content: 'The behind-the-scenes content is amazing! Keep it up!', time: '7:20 AM', isMe: false },
-    ],
-  },
-  {
-    id: '5',
-    name: 'David Park',
-    platform: 'linkedin',
-    lastMessage: 'Interested in your enterprise plan. Can we schedule a call?',
-    time: '5h ago',
-    unread: false,
-    online: false,
-    messages: [
-      { id: '1', sender: 'David Park', avatar: 'DP', content: 'Hi, I am interested in your enterprise plan. Can we schedule a call to discuss?', time: '5:00 AM', isMe: false },
-    ],
-  },
-])
+const conversations = ref<Conversation[]>([])
 
 const aiSuggestions = [
   'Thank you for reaching out!',

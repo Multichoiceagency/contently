@@ -41,6 +41,74 @@ export const usePostsStore = defineStore('posts', {
     },
   },
   actions: {
+    async fetchPosts(apiBase: string, token: string, workspaceId: string) {
+      this.loading = true
+      try {
+        const res = await $fetch<any>(`${apiBase}/posts`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'x-workspace-id': workspaceId,
+          },
+        })
+        this.posts = (res.posts || []).map((p: any) => ({
+          id: p.id,
+          content: p.content,
+          platforms: [p.platform],
+          status: p.status,
+          scheduledAt: p.scheduledAt,
+          publishedAt: p.publishedAt,
+          mediaUrls: p.mediaUrls || [],
+          engagement: {
+            likes: 0,
+            comments: 0,
+            shares: 0,
+            clicks: 0,
+            impressions: 0,
+          },
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        }))
+      } catch {
+        this.posts = []
+      } finally {
+        this.loading = false
+      }
+    },
+    async createPost(apiBase: string, token: string, workspaceId: string, data: { content: string; platform: string; status: string; scheduledAt?: string }) {
+      const res = await $fetch<any>(`${apiBase}/posts`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'x-workspace-id': workspaceId,
+        },
+        body: data,
+      })
+      return res.post
+    },
+    async updatePostApi(apiBase: string, token: string, workspaceId: string, id: string, data: any) {
+      const res = await $fetch<any>(`${apiBase}/posts/${id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'x-workspace-id': workspaceId,
+        },
+        body: data,
+      })
+      return res.post
+    },
+    async deletePostApi(apiBase: string, token: string, workspaceId: string, id: string) {
+      await $fetch(`${apiBase}/posts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-workspace-id': workspaceId,
+        },
+      })
+      this.posts = this.posts.filter(p => p.id !== id)
+    },
+    // Keep local-only methods for compatibility
     async loadPosts() {
       this.loading = false
     },

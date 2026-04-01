@@ -29,7 +29,7 @@ const customStart = ref('')
 const customEnd = ref('')
 const exportOpen = ref(false)
 
-// Generate mock data
+// Empty data — will be populated from API when analytics backend is connected
 const generateDailyData = (days: number) => {
   const data = []
   for (let i = days - 1; i >= 0; i--) {
@@ -37,10 +37,10 @@ const generateDailyData = (days: number) => {
     d.setDate(d.getDate() - i)
     data.push({
       date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      impressions: Math.floor(Math.random() * 5000 + 2000),
-      clicks: Math.floor(Math.random() * 400 + 100),
-      engagement: Math.floor(Math.random() * 300 + 50),
-      followers: Math.floor(Math.random() * 50 + 10),
+      impressions: 0,
+      clicks: 0,
+      engagement: 0,
+      followers: 0,
     })
   }
   return data

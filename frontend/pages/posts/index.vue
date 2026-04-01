@@ -18,6 +18,10 @@ import type { PostStatus, Platform, Post } from '~/types'
 const postsStore = usePostsStore()
 const router = useRouter()
 const { addToast } = useToast()
+const { token } = useAuth()
+const { current } = useWorkspace()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase as string
 
 const showPostModal = ref(false)
 const viewMode = ref<'grid' | 'list'>('grid')
@@ -43,7 +47,15 @@ const platformFilters: { id: Platform | 'all'; label: string; color: string }[] 
 ]
 
 onMounted(() => {
-  postsStore.loadPosts()
+  if (token.value && current.value?.id) {
+    postsStore.fetchPosts(apiBase, token.value, current.value.id)
+  }
+})
+
+watch(() => current.value?.id, (id) => {
+  if (token.value && id) {
+    postsStore.fetchPosts(apiBase, token.value, id)
+  }
 })
 
 const handleSearch = (value: string) => {
@@ -64,14 +76,24 @@ const handleEditPost = (id: string) => {
   router.push(`/posts/${id}`)
 }
 
-const handleDeletePost = (id: string) => {
-  postsStore.deletePost(id)
-  selectedPosts.value = selectedPosts.value.filter(pid => pid !== id)
-  addToast('Post deleted successfully', 'success')
+const handleDeletePost = async (id: string) => {
+  if (!token.value || !current.value?.id) return
+  try {
+    await postsStore.deletePostApi(apiBase, token.value, current.value.id, id)
+    selectedPosts.value = selectedPosts.value.filter(pid => pid !== id)
+    addToast('Post deleted successfully', 'success')
+  } catch {
+    addToast('Failed to delete post', 'error')
+  }
 }
 
-const handleBulkDelete = () => {
-  selectedPosts.value.forEach(id => postsStore.deletePost(id))
+const handleBulkDelete = async () => {
+  if (!token.value || !current.value?.id) return
+  for (const id of selectedPosts.value) {
+    try {
+      await postsStore.deletePostApi(apiBase, token.value, current.value.id, id)
+    } catch { /* continue */ }
+  }
   addToast(`${selectedPosts.value.length} posts deleted`, 'success')
   selectedPosts.value = []
 }
@@ -97,21 +119,21 @@ const isAllSelected = computed(() => {
   return postsStore.filteredPosts.length > 0 && selectedPosts.value.length === postsStore.filteredPosts.length
 })
 
-const handleCreatePost = (data: any) => {
-  const newPost: Post = {
-    id: Date.now().toString(),
-    content: data.content,
-    platforms: data.platforms,
-    status: data.status,
-    scheduledAt: data.scheduledAt,
-    publishedAt: undefined,
-    mediaUrls: [],
-    engagement: { likes: 0, comments: 0, shares: 0, clicks: 0, impressions: 0 },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+const handleCreatePost = async (data: any) => {
+  if (!token.value || !current.value?.id) return
+  try {
+    const platform = data.platforms?.[0] || 'linkedin'
+    const post = await postsStore.createPost(apiBase, token.value, current.value.id, {
+      content: data.content,
+      platform,
+      status: data.status || 'draft',
+      scheduledAt: data.scheduledAt,
+    })
+    await postsStore.fetchPosts(apiBase, token.value, current.value.id)
+    addToast('Post created successfully', 'success')
+  } catch {
+    addToast('Failed to create post', 'error')
   }
-  postsStore.addPost(newPost)
-  addToast('Post created successfully', 'success')
 }
 
 const activeFilterIndex = computed(() => {

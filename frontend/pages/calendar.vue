@@ -11,6 +11,10 @@ import type { Post, Platform } from '~/types'
 const postsStore = usePostsStore()
 const router = useRouter()
 const { addToast } = useToast()
+const { token } = useAuth()
+const { current } = useWorkspace()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase as string
 
 const showPostModal = ref(false)
 const selectedDate = ref<Date | null>(null)
@@ -26,7 +30,9 @@ const platformFilters: { id: Platform | 'all'; label: string; color: string }[] 
 ]
 
 onMounted(() => {
-  postsStore.loadPosts()
+  if (token.value && current.value?.id) {
+    postsStore.fetchPosts(apiBase, token.value, current.value.id)
+  }
 })
 
 const filteredPosts = computed(() => {
@@ -53,25 +59,30 @@ const handleSelectPost = (post: Post) => {
   showPostModal.value = true
 }
 
-const handleSavePost = (data: any) => {
-  if (editingPost.value) {
-    postsStore.updatePost(editingPost.value.id, data)
-    addToast('Post updated successfully', 'success')
-  } else {
-    const newPost: Post = {
-      id: Date.now().toString(),
-      content: data.content,
-      platforms: data.platforms,
-      status: data.status,
-      scheduledAt: data.scheduledAt,
-      publishedAt: undefined,
-      mediaUrls: [],
-      engagement: { likes: 0, comments: 0, shares: 0, clicks: 0, impressions: 0 },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+const handleSavePost = async (data: any) => {
+  if (!token.value || !current.value?.id) return
+  try {
+    const platform = data.platforms?.[0] || 'linkedin'
+    if (editingPost.value) {
+      await postsStore.updatePostApi(apiBase, token.value, current.value.id, editingPost.value.id, {
+        content: data.content,
+        platform,
+        status: data.status,
+        scheduledAt: data.scheduledAt,
+      })
+      addToast('Post updated successfully', 'success')
+    } else {
+      await postsStore.createPost(apiBase, token.value, current.value.id, {
+        content: data.content,
+        platform,
+        status: data.status || 'draft',
+        scheduledAt: data.scheduledAt,
+      })
+      addToast('Post created successfully', 'success')
     }
-    postsStore.addPost(newPost)
-    addToast('Post created successfully', 'success')
+    await postsStore.fetchPosts(apiBase, token.value, current.value.id)
+  } catch {
+    addToast('Failed to save post', 'error')
   }
 }
 
