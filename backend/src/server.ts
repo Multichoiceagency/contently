@@ -12,6 +12,7 @@ import postRoutes from "./routes/posts.js";
 import aiRoutes from "./routes/ai.js";
 import socialRoutes from "./routes/social.js";
 import analyticsRoutes from "./routes/analytics.js";
+import stripeRoutes from "./routes/stripe.js";
 import { startPublishWorker } from "./workers/publish.worker.js";
 import {
   startAnalyticsWorker,
@@ -87,6 +88,24 @@ async function buildServer() {
   await fastify.register(aiRoutes);
   await fastify.register(socialRoutes);
   await fastify.register(analyticsRoutes);
+
+  // Add raw body support for Stripe webhooks
+  fastify.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (req, body, done) => {
+      try {
+        const json = JSON.parse(body as string);
+        // Attach raw body for webhook signature verification
+        (req as any).rawBody = body;
+        done(null, json);
+      } catch (err: any) {
+        done(err, undefined);
+      }
+    }
+  );
+
+  await fastify.register(stripeRoutes);
 
   // --- Health check ---
 

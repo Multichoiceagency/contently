@@ -22,7 +22,7 @@
         <div class="rounded-2xl border border-gray-200 p-8 flex flex-col">
           <h3 class="text-xl font-semibold text-cs-heading mb-2">Starter</h3>
           <div class="mb-6">
-            <span class="text-3xl font-bold text-cs-heading">$25</span>
+            <span class="text-3xl font-bold text-cs-heading">$14</span>
             <span class="text-cs-muted">/mo</span>
           </div>
 
@@ -49,9 +49,9 @@
             </li>
           </ul>
 
-          <button class="w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors">
+          <NuxtLink to="/auth/register" class="block w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors text-center">
             Get Started
-          </button>
+          </NuxtLink>
         </div>
 
         <!-- Professional Card (Most Popular) -->
@@ -65,14 +65,14 @@
 
           <h3 class="text-xl font-semibold text-cs-heading mb-2">Professional</h3>
           <div class="mb-6">
-            <span class="text-3xl font-bold text-cs-heading">$49</span>
+            <span class="text-3xl font-bold text-cs-heading">$35</span>
             <span class="text-cs-muted">/mo</span>
           </div>
 
           <ul class="space-y-3 mb-8 flex-grow">
             <li class="flex items-start gap-3">
               <CheckIcon class="w-5 h-5 text-cs-blue flex-shrink-0 mt-0.5" />
-              <span class="text-cs-body">15 social accounts</span>
+              <span class="text-cs-body">10 social accounts</span>
             </li>
             <li class="flex items-start gap-3">
               <CheckIcon class="w-5 h-5 text-cs-blue flex-shrink-0 mt-0.5" />
@@ -96,23 +96,23 @@
             </li>
           </ul>
 
-          <button class="w-full py-3 rounded-full bg-cs-blue text-white font-medium hover:bg-blue-600 transition-colors">
+          <NuxtLink to="/auth/register" class="block w-full py-3 rounded-full bg-cs-blue text-white font-medium hover:bg-blue-600 transition-colors text-center">
             Start Free Trial
-          </button>
+          </NuxtLink>
         </div>
 
         <!-- Agency Card -->
         <div class="rounded-2xl border border-gray-200 p-8 flex flex-col">
           <h3 class="text-xl font-semibold text-cs-heading mb-2">Agency</h3>
           <div class="mb-6">
-            <span class="text-3xl font-bold text-cs-heading">$99</span>
+            <span class="text-3xl font-bold text-cs-heading">$69</span>
             <span class="text-cs-muted">/mo</span>
           </div>
 
           <ul class="space-y-3 mb-8 flex-grow">
             <li class="flex items-start gap-3">
               <CheckIcon class="w-5 h-5 text-cs-blue flex-shrink-0 mt-0.5" />
-              <span class="text-cs-body">Unlimited social accounts</span>
+              <span class="text-cs-body">25 social accounts</span>
             </li>
             <li class="flex items-start gap-3">
               <CheckIcon class="w-5 h-5 text-cs-blue flex-shrink-0 mt-0.5" />
@@ -136,9 +136,9 @@
             </li>
           </ul>
 
-          <button class="w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors">
+          <NuxtLink to="/auth/register" class="block w-full py-3 rounded-full border border-gray-300 text-cs-heading font-medium hover:bg-gray-50 transition-colors text-center">
             Get Started
-          </button>
+          </NuxtLink>
         </div>
       </div>
     </div>

@@ -10,6 +10,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:4000',
+      googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+      stripePublishableKey: process.env.NUXT_PUBLIC_STRIPE_KEY || '',
     },
   },
   colorMode: {
@@ -28,6 +30,9 @@ export default defineNuxtConfig({
         { name: 'og:type', content: 'website' },
         { name: 'og:url', content: 'https://contentrich.nl' },
         { name: 'twitter:card', content: 'summary_large_image' },
+      ],
+      script: [
+        { src: 'https://accounts.google.com/gsi/client', async: true, defer: true },
       ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },

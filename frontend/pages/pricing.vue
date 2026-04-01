@@ -58,7 +58,7 @@
               <h3 class="text-xl font-semibold text-cs-heading">Starter</h3>
               <div class="mt-4">
                 <span class="text-4xl font-bold text-cs-heading">
-                  {{ billingPeriod === 'monthly' ? '$19' : '$13' }}
+                  {{ billingPeriod === 'monthly' ? '$14' : '$9' }}
                 </span>
                 <span class="text-cs-muted">/mo</span>
               </div>
@@ -80,7 +80,7 @@
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">50 AI credits/month</span>
+                <span class="text-sm text-cs-heading">25K AI credits/month</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
@@ -88,12 +88,16 @@
               </li>
             </ul>
 
-            <button class="mt-8 w-full rounded-full border border-cs-heading py-3 font-medium text-cs-heading transition-colors hover:bg-gray-50">
-              Get Started
+            <button
+              @click="handleCheckout('starter')"
+              :disabled="checkoutLoading === 'starter'"
+              class="mt-8 w-full rounded-full border border-cs-heading py-3 font-medium text-cs-heading transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              {{ checkoutLoading === 'starter' ? 'Loading...' : 'Get Started' }}
             </button>
           </div>
 
-          <!-- Advanced Card (Popular) -->
+          <!-- Professional Card (Popular) -->
           <div class="relative flex flex-col rounded-2xl border-2 border-cs-blue p-8 transition-shadow hover:shadow-lg">
             <div class="absolute -top-3 left-1/2 -translate-x-1/2">
               <div class="rounded-full bg-cs-blue px-3 py-1 text-xs font-semibold text-white">
@@ -102,10 +106,10 @@
             </div>
 
             <div>
-              <h3 class="text-xl font-semibold text-cs-heading">Advanced</h3>
+              <h3 class="text-xl font-semibold text-cs-heading">Professional</h3>
               <div class="mt-4">
                 <span class="text-4xl font-bold text-cs-heading">
-                  {{ billingPeriod === 'monthly' ? '$49' : '$33' }}
+                  {{ billingPeriod === 'monthly' ? '$35' : '$23' }}
                 </span>
                 <span class="text-cs-muted">/mo</span>
               </div>
@@ -115,19 +119,19 @@
             <ul class="mt-8 space-y-4 flex-grow">
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">5 workspaces</span>
+                <span class="text-sm text-cs-heading">2 workspaces</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">15 social accounts</span>
+                <span class="text-sm text-cs-heading">10 social accounts</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">5 users</span>
+                <span class="text-sm text-cs-heading">3 users</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">500 AI credits/month</span>
+                <span class="text-sm text-cs-heading">50K AI credits/month</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
@@ -139,8 +143,12 @@
               </li>
             </ul>
 
-            <button class="mt-8 w-full rounded-full bg-cs-blue py-3 font-medium text-white transition-colors hover:bg-blue-700">
-              Start Free Trial
+            <button
+              @click="handleCheckout('professional')"
+              :disabled="checkoutLoading === 'professional'"
+              class="mt-8 w-full rounded-full bg-cs-blue py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            >
+              {{ checkoutLoading === 'professional' ? 'Loading...' : 'Start Free Trial' }}
             </button>
           </div>
 
@@ -150,7 +158,7 @@
               <h3 class="text-xl font-semibold text-cs-heading">Agency</h3>
               <div class="mt-4">
                 <span class="text-4xl font-bold text-cs-heading">
-                  {{ billingPeriod === 'monthly' ? '$99' : '$66' }}
+                  {{ billingPeriod === 'monthly' ? '$69' : '$46' }}
                 </span>
                 <span class="text-cs-muted">/mo</span>
               </div>
@@ -164,15 +172,15 @@
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">50 social accounts</span>
+                <span class="text-sm text-cs-heading">25 social accounts</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">15 users</span>
+                <span class="text-sm text-cs-heading">Unlimited users</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
-                <span class="text-sm text-cs-heading">Unlimited AI credits</span>
+                <span class="text-sm text-cs-heading">150K AI credits/month</span>
               </li>
               <li class="flex gap-3">
                 <CheckIcon class="h-5 w-5 flex-shrink-0 text-cs-blue" />
@@ -184,8 +192,12 @@
               </li>
             </ul>
 
-            <button class="mt-8 w-full rounded-full border border-cs-heading py-3 font-medium text-cs-heading transition-colors hover:bg-gray-50">
-              Get Started
+            <button
+              @click="handleCheckout('agency')"
+              :disabled="checkoutLoading === 'agency'"
+              class="mt-8 w-full rounded-full border border-cs-heading py-3 font-medium text-cs-heading transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              {{ checkoutLoading === 'agency' ? 'Loading...' : 'Get Started' }}
             </button>
           </div>
 
@@ -239,7 +251,7 @@
               <tr>
                 <th class="px-6 py-4 text-left text-sm font-semibold text-cs-heading">Feature</th>
                 <th class="px-6 py-4 text-center text-sm font-semibold text-cs-heading">Starter</th>
-                <th class="px-6 py-4 text-center text-sm font-semibold text-cs-heading">Advanced</th>
+                <th class="px-6 py-4 text-center text-sm font-semibold text-cs-heading">Professional</th>
                 <th class="px-6 py-4 text-center text-sm font-semibold text-cs-heading">Agency</th>
                 <th class="px-6 py-4 text-center text-sm font-semibold text-cs-heading">Enterprise</th>
               </tr>
@@ -254,8 +266,8 @@
               <tr>
                 <td class="px-6 py-4 text-sm text-cs-heading">Social accounts</td>
                 <td class="px-6 py-4 text-center text-sm text-cs-heading">5</td>
-                <td class="px-6 py-4 text-center text-sm text-cs-heading">15</td>
-                <td class="px-6 py-4 text-center text-sm text-cs-heading">50</td>
+                <td class="px-6 py-4 text-center text-sm text-cs-heading">10</td>
+                <td class="px-6 py-4 text-center text-sm text-cs-heading">25</td>
                 <td class="px-6 py-4 text-center text-sm text-cs-blue font-medium">Custom</td>
               </tr>
               <tr>
@@ -338,8 +350,8 @@
               <tr>
                 <td class="px-6 py-4 text-sm text-cs-heading">Team members</td>
                 <td class="px-6 py-4 text-center text-sm text-cs-heading">1</td>
-                <td class="px-6 py-4 text-center text-sm text-cs-heading">5</td>
-                <td class="px-6 py-4 text-center text-sm text-cs-heading">15</td>
+                <td class="px-6 py-4 text-center text-sm text-cs-heading">3</td>
+                <td class="px-6 py-4 text-center text-sm text-cs-blue font-medium">Unlimited</td>
                 <td class="px-6 py-4 text-center text-sm text-cs-blue font-medium">Unlimited</td>
               </tr>
               <tr>
@@ -562,8 +574,8 @@
             </button>
             <div v-if="openFaq === 4" class="px-6 py-4 bg-gray-50 border-t border-gray-200">
               <p class="text-sm text-cs-muted">
-                The number of workspaces depends on your plan. Starter includes 1 workspace, Advanced includes
-                5, and Agency includes unlimited workspaces. Enterprise plans can be customized.
+                The number of workspaces depends on your plan. Starter includes 1 workspace, Professional includes
+                2, and Agency includes unlimited workspaces. Enterprise plans can be customized.
               </p>
             </div>
           </div>
@@ -652,7 +664,7 @@
             </button>
             <div v-if="openFaq === 7" class="px-6 py-4 bg-gray-50 border-t border-gray-200">
               <p class="text-sm text-cs-muted">
-                All plans include email support. Advanced plans get priority support, and Enterprise plans
+                All plans include email support. Professional plans get priority support, and Enterprise plans
                 include a dedicated account manager and SLA guarantee.
               </p>
             </div>
@@ -672,12 +684,12 @@
             Join thousands of marketers who are already managing their social media smarter.
           </p>
           <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-            <button class="rounded-full bg-cs-blue px-8 py-3 font-medium text-white transition-colors hover:bg-blue-700">
+            <NuxtLink to="/auth/register" class="rounded-full bg-cs-blue px-8 py-3 font-medium text-white transition-colors hover:bg-blue-700 text-center">
               Start Free Trial
-            </button>
-            <button class="rounded-full border border-cs-heading px-8 py-3 font-medium text-cs-heading transition-colors hover:bg-white">
+            </NuxtLink>
+            <NuxtLink to="/demo" class="rounded-full border border-cs-heading px-8 py-3 font-medium text-cs-heading transition-colors hover:bg-white text-center">
               Schedule Demo
-            </button>
+            </NuxtLink>
           </div>
         </div>
       </div>
@@ -697,9 +709,51 @@ definePageMeta({
 
 const billingPeriod = ref<'monthly' | 'yearly'>('monthly')
 const openFaq = ref<number | null>(null)
+const checkoutLoading = ref<string | null>(null)
+
+const { isAuthenticated } = useAuth()
+const { checkout } = useSubscription()
+const authStore = useAuthStore()
+const router = useRouter()
 
 const toggleFaq = (index: number) => {
   openFaq.value = openFaq.value === index ? null : index
+}
+
+const handleCheckout = async (plan: string) => {
+  if (!isAuthenticated.value) {
+    router.push('/auth/register')
+    return
+  }
+
+  // Get the user's first workspace
+  const userJson = localStorage.getItem('flowgent_user')
+  let workspaceId = ''
+
+  if (userJson) {
+    try {
+      // Try to fetch workspaces from auth/me
+      const config = useRuntimeConfig()
+      const me = await $fetch<any>(`${config.public.apiBase}/auth/me`, {
+        headers: { Authorization: `Bearer ${authStore.token}` },
+      }).catch(() => null)
+
+      if (me?.workspaces?.[0]?.id) {
+        workspaceId = me.workspaces[0].id
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  if (!workspaceId) {
+    router.push('/auth/register')
+    return
+  }
+
+  checkoutLoading.value = plan
+  await checkout(plan, billingPeriod.value, workspaceId)
+  checkoutLoading.value = null
 }
 </script>
 

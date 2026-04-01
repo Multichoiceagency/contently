@@ -109,6 +109,26 @@ export function useAuth() {
     }
   }
 
+  const googleLogin = async (credential: string) => {
+    try {
+      const res = await $fetch<any>(`${apiBase}/auth/google`, {
+        method: 'POST',
+        body: { credential },
+      })
+
+      authStore.setAuth(res.user, res.accessToken)
+      localStorage.setItem('flowgent_token', res.accessToken)
+      localStorage.setItem('flowgent_refresh', res.refreshToken)
+      localStorage.setItem('flowgent_user', JSON.stringify(res.user))
+
+      await router.push('/dashboard')
+      return { success: true }
+    } catch (error: any) {
+      const data = error?.data || error?.response?._data
+      return { success: false, error: data?.message || 'Google login failed' }
+    }
+  }
+
   const logout = async () => {
     try {
       const refreshToken = localStorage.getItem('flowgent_refresh')
@@ -172,6 +192,7 @@ export function useAuth() {
 
   return {
     login,
+    googleLogin,
     register,
     verifyEmail,
     resendCode,

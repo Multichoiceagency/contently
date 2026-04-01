@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import bcrypt from "bcrypt";
 import crypto from "node:crypto";
 import { z } from "zod";
+import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../lib/prisma.js";
 import {
   generateVerificationCode,
@@ -185,7 +186,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!user) {
+      if (!user || !user.passwordHash) {
         return reply.status(401).send({
           statusCode: 401,
           error: "Unauthorized",
@@ -540,6 +541,189 @@ export default async function authRoutes(fastify: FastifyInstance) {
       await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
 
       return reply.send({ message: "Password reset successfully. Please log in." });
+    }
+  );
+
+  // POST /auth/google
+  const googleSchema = z.object({
+    credential: z.string().min(1, "Google credential is required"),
+  });
+
+  fastify.post(
+    "/auth/google",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parseResult = googleSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: "Validation Error",
+          message: parseResult.error.issues.map((i) => i.message).join(", "),
+        });
+      }
+
+      const { credential } = parseResult.data;
+
+      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      if (!googleClientId) {
+        return reply.status(500).send({
+          statusCode: 500,
+          error: "Configuration Error",
+          message: "Google OAuth is not configured",
+        });
+      }
+
+      const client = new OAuth2Client(googleClientId);
+
+      let payload;
+      try {
+        const ticket = await client.verifyIdToken({
+          idToken: credential,
+          audience: googleClientId,
+        });
+        payload = ticket.getPayload();
+      } catch {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: "Unauthorized",
+          message: "Invalid Google credential",
+        });
+      }
+
+      if (!payload || !payload.email || !payload.sub) {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: "Unauthorized",
+          message: "Unable to extract user info from Google",
+        });
+      }
+
+      const { sub: googleId, email, name, picture } = payload;
+
+      // Check if user exists by googleId
+      let user = await prisma.user.findUnique({
+        where: { googleId },
+        include: {
+          workspaceMembers: {
+            include: {
+              workspace: {
+                select: { id: true, name: true, slug: true, plan: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        // Check if user exists by email (link accounts)
+        const existingByEmail = await prisma.user.findUnique({
+          where: { email },
+          include: {
+            workspaceMembers: {
+              include: {
+                workspace: {
+                  select: { id: true, name: true, slug: true, plan: true },
+                },
+              },
+            },
+          },
+        });
+
+        if (existingByEmail) {
+          // Link Google account to existing user
+          user = await prisma.user.update({
+            where: { id: existingByEmail.id },
+            data: {
+              googleId,
+              emailVerified: true,
+              avatar: existingByEmail.avatar || picture || null,
+            },
+            include: {
+              workspaceMembers: {
+                include: {
+                  workspace: {
+                    select: { id: true, name: true, slug: true, plan: true },
+                  },
+                },
+              },
+            },
+          });
+        } else {
+          // Create new user
+          const userName = name || email.split("@")[0];
+          user = await prisma.user.create({
+            data: {
+              email,
+              googleId,
+              name: userName,
+              avatar: picture || null,
+              emailVerified: true,
+              passwordHash: null,
+            },
+            include: {
+              workspaceMembers: {
+                include: {
+                  workspace: {
+                    select: { id: true, name: true, slug: true, plan: true },
+                  },
+                },
+              },
+            },
+          });
+
+          // Create default workspace
+          const workspaceName = `${userName}'s Workspace`;
+          await prisma.workspace.create({
+            data: {
+              name: workspaceName,
+              slug: generateSlug(workspaceName),
+              members: {
+                create: {
+                  userId: user.id,
+                  role: "owner",
+                },
+              },
+            },
+          });
+
+          // Re-fetch with workspace
+          user = await prisma.user.findUnique({
+            where: { id: user.id },
+            include: {
+              workspaceMembers: {
+                include: {
+                  workspace: {
+                    select: { id: true, name: true, slug: true, plan: true },
+                  },
+                },
+              },
+            },
+          }) as typeof user;
+        }
+      }
+
+      if (!user) {
+        return reply.status(500).send({
+          statusCode: 500,
+          error: "Server Error",
+          message: "Failed to create or find user",
+        });
+      }
+
+      const tokens = await generateTokens(fastify, user.id, user.email);
+
+      return reply.send({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatar: user.avatar,
+        },
+        workspaces: user.workspaceMembers.map((m) => ({
+          ...m.workspace,
+          role: m.role,
+        })),
+        ...tokens,
+      });
     }
   );
 
